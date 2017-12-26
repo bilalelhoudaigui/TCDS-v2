@@ -9,9 +9,8 @@ import matplotlib.gridspec as gridspec
 
 def plot_mean_sigma_genes_v2(INI_file, sigma_info, RNAPs_pos_info):
 
-    # path to the input files
-    path = "../example/" # a changer
-    INI_file = path+INI_file
+    # path to the input files (remove the "params.ini" from the path)
+    path = INI_file[:-10]
     # read the config file
     config = sim.read_config_file(INI_file)
     # get inputs infos from the config file
@@ -19,10 +18,9 @@ def plot_mean_sigma_genes_v2(INI_file, sigma_info, RNAPs_pos_info):
     TSS_file = path+config.get('INPUTS', 'TSS')
     TTS_file = path+config.get('INPUTS', 'TTS')
     Prot_file = path+config.get('INPUTS', 'BARR_FIX')
-    DELTA_X = path+config.get('SIMULATION', 'DELTA_X').split("/")[-1]
-    DELTA_X = int(DELTA_X.split("/")[-1])
-    SIGMA_0 = path+config.get('SIMULATION', 'SIGMA_0')
-    SIGMA_0 = float(SIGMA_0.split("/")[-1])
+
+    SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
+    DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
 
     # load and get BARR_FIX positions
     prot = sim.load_tab_file(Prot_file)
@@ -140,28 +138,49 @@ def plot_mean_sigma_genes_v2(INI_file, sigma_info, RNAPs_pos_info):
 
 
 # Plot the supercoiling density before and after adding Gyrase (Chong experiment)
-def plot_topoI_gyrase(INI_file, output_dir_pre, output_dir_post):
-
-    GFF_file, TSS_file, TTS_file, Prot_file, m, sigma_t, epsilon, SIGMA_0, DELTA_X, DELTA_T, RNAPS_NB, ITERATIONS_NB, OUTPUT_STEP, GYRASE_CONC, TOPO_CONC, TOPO_CTE, GYRASE_CTE, TOPO_EFFICIENCY, k_GYRASE, x0_GYRASE, k_TOPO, x0_TOPO = sim.read_config_file_v2(INI_file)
-    tss = sim.load_tab_file(TSS_file)
-    Kon = tss['TSS_strength'].values
+def plot_topoI_gyrase_sigma(output_dir_pre, output_dir_post):
 
     # get the full path
-    output_dir_pre = output_dir_pre+"/withSC_Kon_%.06f/RNAPn_%s/Sig0_%s/Gyrase_%s_TopoI_%s/all_res/save_sigma_info.npz" %(Kon[0], RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
-    output_dir_post = output_dir_post+"/withSC_Kon_%.06f/RNAPn_%s/Sig0_%s/Gyrase_%s_TopoI_%s/all_res/save_sigma_info.npz" %(Kon[0], RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
+    output_dir_pre = output_dir_pre+"/all_res/save_sigma_info.npz"
+    output_dir_post = output_dir_post+"/all_res/save_sigma_info.npz"
     
     # get the files
     sigma_info_pre = np.load(output_dir_pre)
     sigma_info_post = np.load(output_dir_post)
-    mean_sig_WG_pre = sigma_info_pre["mean_sig_wholeGenome"]
+    mean_sig_WG_pre = sigma_info_pre["mean_sig_wholeGenome"]    
     mean_sig_WG_post = sigma_info_post["mean_sig_wholeGenome"]
     mean_sig_WG = np.concatenate([mean_sig_WG_pre, mean_sig_WG_post])
 
     # plot the result
     fig = plt.figure(1)
-    plt.plot(range(0, len(mean_sig_WG)*int(DELTA_T), int(DELTA_T)), mean_sig_WG)
+    plt.plot(range(0, len(mean_sig_WG)*int(2), int(2)), mean_sig_WG)
     plt.xlabel("Time (s)")
     plt.ylabel("Mean of supercoiling density")
     fig.tight_layout()
     plt.show()
 
+
+# Plot the initiation rate before and after adding Gyrase (Chong experiment)
+def plot_topoI_gyrase_kon(output_dir_pre, output_dir_post):
+
+    # get the full path
+    output_dir_pre = output_dir_pre+"/all_res/save_tr_info.npz"
+    output_dir_post = output_dir_post+"/all_res/save_tr_info.npz"
+    
+    # get the files
+    tr_info_pre = np.load(output_dir_pre)
+    tr_info_post = np.load(output_dir_post)
+    # [0,1,:] : extract from the first 3D array (0 correspond to gene0) 
+    # the 2nd 2D array (1 correspond to the init_rate of the gene0)
+    # and all the value during the simulation (:)  
+    init_rate_pre = tr_info_pre["tr_info"][0,1,:]
+    init_rate_post = tr_info_post["tr_info"][0,1,:]
+    tr_info_all = np.concatenate([init_rate_pre, init_rate_post])
+
+    # plot the result
+    fig = plt.figure(1)
+    plt.plot(range(0, len(tr_info_all)*int(2), int(2)), tr_info_all)
+    plt.xlabel("Time (s)")
+    plt.ylabel("Initiation rate")
+    fig.tight_layout()
+    plt.show()
