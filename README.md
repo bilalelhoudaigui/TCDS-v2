@@ -90,12 +90,12 @@ output
 
   * *all_res* : The *all_res* directory contains the files in which the information are saved **at each step during the whole simulation**.
       * *save_RNAPs_info.npz* : We store in this file RNA Polymerase IDs which are bound to  the transcripts and their positions along the genome.
-      * *save_sigma_info.npz* : This file contains information related to the supercoiling such as the size of each region (regions are delimited by the protein barriers) and the supercoiling density (\sigma) in each one of them and \sigma on the whole genome too.
-      * *save_tr_info.npz* :  This file contains information about transcripts such as the number of transcripts and the initiation rate (k_{on})
+      * *save_sigma_info.npz* : This file contains information related to the supercoiling such as the size of each region (regions are delimited by the protein barriers) and the supercoiling density (<a href="https://www.codecogs.com/eqnedit.php?latex=\sigma" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\sigma" title="\sigma" /></a>) in each one of them and <a href="https://www.codecogs.com/eqnedit.php?latex=\sigma" target="_blank"><img src="https://latex.codecogs.com/gif.latex?\sigma" title="\sigma" /></a> on the whole genome too.
+      * *save_tr_info.npz* :  This file contains information about transcripts such as the number of transcripts and the initiation rate (<a href="https://www.codecogs.com/eqnedit.php?latex=k_{on}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?k_{on}" title="k_{on}" /></a>)
   * *resume_sim* : The *resume_sim* directory contains the files in which the last information are saved **directly before the end of the simulation**, those information can be used to resume the simulation later on.
       * *resume_sim_Barr.npz* : This file contains information related to barriers such as the barriers positions and types, the regions size and the supercoiling density in each one of them and finally the remaining steps for the ARN Polymerase in order to reach the end of the transcript (this information will help us if we want to resume the simulation).
       * *resume_sim_RNAPs.npz* : This file contains the RNA polymerases IDs which are bound to the transcripts, their positions along the genome and the unhooked RNA polymerases IDs (those are free RNA Pol, they can be bond and start transcribing).
-      * *resume_sim_tr.npz* :  In this file we save the number of transcripts and the initiation rate (k_{on})
+      * *resume_sim_tr.npz* :  In this file we save the number of transcripts and the initiation rate (<a href="https://www.codecogs.com/eqnedit.php?latex=k_{on}" target="_blank"><img src="https://latex.codecogs.com/gif.latex?k_{on}" title="k_{on}" /></a>)
   * *save_tr_nbr.csv* : A human readable csv file in which the number of transcripts made after each transcription are stored.
   * *save_tr_times.csv* : This file contains the time of creation of each transcript (the moment when the ARN Polymarase finishes the transcription process).
   * *save_nbr_RNAPs_hooked.npz* : Stores the number of RNAPols that are transcribing (hooked) at each time step.
