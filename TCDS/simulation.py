@@ -70,7 +70,6 @@ def read_config_file_v2(path):
 
     return GFF_file, TSS_file, TTS_file, Prot_file, m, sigma_t, epsilon, SIGMA_0, DELTA_X, DELTA_T, RNAPS_NB, ITERATIONS_NB, OUTPUT_STEP, GYRASE_CONC, TOPO_CONC, TOPO_CTE, GYRASE_CTE, TOPO_EFFICIENCY, k_GYRASE, x0_GYRASE, k_TOPO, x0_TOPO
 
-
 ###################### Reading files ######################
 
 # you can combine those two functions
@@ -207,7 +206,8 @@ def save_files(output_dir,
                 tr_nbr, tr_times, save_RNAPs_info, save_tr_info, 
                 save_Barr_sigma, save_Dom_size, save_mean_sig_wholeGenome,
                 DELTA_X, RNAPs_genSC,
-                RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, save_nbr_RNAPs_hooked,
+                RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, 
+                RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked,
                 init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC):
 
     # make sure that the output direcory exists, and create one if it's not
@@ -228,7 +228,11 @@ def save_files(output_dir,
     # Save last info
     np.savez("%s/resume_sim/resume_sim_RNAPs.npz" %output_dir, RNAPs_tr = RNAPs_tr, 
                                                                RNAPs_pos = RNAPs_pos, 
-                                                               RNAPs_unhooked_id = RNAPs_unhooked_id)
+                                                               RNAPs_unhooked_id = RNAPs_unhooked_id,
+                                                               RNAPs_strand = RNAPs_strand,
+                                                               ts_beg = ts_beg,
+                                                               ts_remain = ts_remain,
+                                                               RNAPs_hooked_id = RNAPs_hooked_id)
 
     np.savez("%s/resume_sim/resume_sim_tr.npz" %output_dir, tr_nbr = tr_nbr,
                                                             init_rate = init_rate)
@@ -315,10 +319,10 @@ def start_transcribing(INI_file, output_dir):
     RNAPs_id = np.full(RNAPS_NB, range(0, RNAPS_NB), dtype=int)
 
     # The position of RNAPs
-    RNAPs_pos = np.full(RNAPS_NB, NaN) #np.zeros(RNAPS_NB, dtype=int)
+    RNAPs_pos = np.full(RNAPS_NB, NaN) 
 
     # RNAPs_last_pos
-    RNAPs_last_pos = np.full(RNAPS_NB, NaN) #np.zeros(RNAPS_NB, dtype=int)
+    RNAPs_last_pos = np.full(RNAPS_NB, NaN)
 
     # get the strands orientation
     strands = str2num(gff_df['strand'].values)
@@ -365,7 +369,6 @@ def start_transcribing(INI_file, output_dir):
     # to track the position of each RNAPol
     # each position in Barr_ts_remain is associated with the same position in Barr_pos
     Barr_ts_remain = np.full(len(Barr_fix), NaN) # The Barr_ts_remain of fixed barr is NaN
-
 
     ######### Variables used to get the coverage ##########
 
@@ -493,7 +496,6 @@ def start_transcribing(INI_file, output_dir):
         old_dom_size = Dom_size[rm_RNAPs_idx-1]
         old_sigma = Barr_sigma[rm_RNAPs_idx-1]
 
-
         # update Dom_size 
         #Dom_size[rm_RNAPs_idx-1] += removed_dom_size 
         # or
@@ -585,7 +587,6 @@ def start_transcribing(INI_file, output_dir):
         ### calculate the Supercoiling generated in each domaine
         # RNAPs_genSC_all : contains an array of RNAPs_genSC that should be added or substracted from each domaine
         RNAPs_genSC_all = RNAPs_genSC/Dom_size
-
         # update the value of sigma
         Barr_sigma[Barr_Dom_RPlus] -= RNAPs_genSC_all[Barr_Dom_RPlus]
         Barr_sigma[Barr_Dom_RMinus] += RNAPs_genSC_all[Barr_Dom_RMinus]
@@ -593,8 +594,6 @@ def start_transcribing(INI_file, output_dir):
         Barr_sigma[RMinus_Dom_RPlus] -= 2*RNAPs_genSC_all[RMinus_Dom_RPlus]
         Barr_sigma[RMinus_Dom_Barr] -= RNAPs_genSC_all[RMinus_Dom_Barr]
         Barr_sigma[RPlus_Dom_Barr] += RNAPs_genSC_all[RPlus_Dom_Barr]
-        
-
         # Now calc_sigma
         Barr_sigma = calc_sigma(Barr_sigma, GYRASE_CONC, k_GYRASE, x0_GYRASE, GYRASE_CTE, TOPO_CONC, k_TOPO, x0_TOPO, TOPO_CTE, DELTA_T)
 
@@ -602,7 +601,7 @@ def start_transcribing(INI_file, output_dir):
         
         # Update the initiation rate        
         init_rate = f_init_rate(tr_rate, sigma_tr_start, sigma_t, epsilon, m)
-        
+
         if t%OUTPUT_STEP == 0:
             # save all informations to npz file    
             # RNAPs_info
@@ -621,9 +620,9 @@ def start_transcribing(INI_file, output_dir):
     save_Barr_sigma = np.array(save_Barr_sigma)
     save_Dom_size = np.array(save_Dom_size)
     save_mean_sig_wholeGenome = np.array(save_mean_sig_wholeGenome)
-    save_files(output_dir, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size, save_mean_sig_wholeGenome, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
+    save_files(output_dir, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size, save_mean_sig_wholeGenome, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
 
-    # Copy the params.ini file to the output folder
+    # Copy the paramse to the output folder
     copy(INI_file, output_dir)
 
     print("Simulation completed successfully !! \nNumber of transcripts : \n")
@@ -636,7 +635,6 @@ def start_transcribing(INI_file, output_dir):
             RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id,
             save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size,
             cov_bp, tr_end)
-
 
 # This function for resuming the simulation by reading npz files
 def resume_transcription(INI_file, resume_path, output_dir):
@@ -758,6 +756,16 @@ def resume_transcription(INI_file, resume_path, output_dir):
     # each position in Barr_ts_remain is associated with the same position in Barr_pos
     Barr_ts_remain = Barr_info['Barr_ts_remain']
 
+    ## do the same for RNAPs_info 
+    # get the RNAPs_info
+    RNAPs_info = np.load("%s/resume_sim/resume_sim_RNAPs.npz" %resume_path)
+
+    # get the RNAPs_hooked_id and RNAPs_pos
+    RNAPs_hooked_id = RNAPs_info["RNAPs_hooked_id"]
+    RNAPs_pos = RNAPs_info["RNAPs_pos"]
+    # deduce the RNAPs_hooked_pos from the extracted info ;)
+    RNAPs_hooked_pos = RNAPs_pos[RNAPs_hooked_id].astype(int)
+
     ######### Variables used to get the coverage ##########
 
     id_shift_fwd = list(range(1, genome))
@@ -794,18 +802,19 @@ def resume_transcription(INI_file, resume_path, output_dir):
 
     ########### Go !
 
-    RNAPs_unhooked_id = np.copy(RNAPs_id)
+    # since we continue the simulation, we shall retrieve the RNAPs_unhooked_id from the npz file
+    RNAPs_unhooked_id = RNAPs_info["RNAPs_unhooked_id"]
 
-    RNAPs_strand = np.full(RNAPS_NB, NaN)
-    ts_beg = np.full(RNAPS_NB, NaN)
-    ts_remain = np.full(RNAPS_NB, NaN)
-    # RNAPs_tr will contain the id of the picked transcript
-    RNAPs_tr = np.full(RNAPS_NB, -1, dtype=(int64))
+    RNAPs_strand = RNAPs_info["RNAPs_strand"]
+    ts_beg = RNAPs_info["ts_beg"]
+    ts_remain = RNAPs_info["ts_remain"]
+    # RNAPs_tr contains the id of the picked transcript
+    RNAPs_tr = RNAPs_info["RNAPs_tr"]
     # get the TSSs ids
     tss_id = tss.index.values
 
-    # in the case of RNAP_NBR = 0
-    RNAPs_hooked_id = []
+    # will do the same for RNAPs_hooked_id
+    RNAPs_hooked_id = RNAPs_info["RNAPs_hooked_id"]
     
     for t in range(0,int(ITERATIONS_NB/DELTA_T)):
         # we need to know each TSS belong to which Domaine
@@ -1015,7 +1024,7 @@ def resume_transcription(INI_file, resume_path, output_dir):
     save_Barr_sigma = np.array(save_Barr_sigma)
     save_Dom_size = np.array(save_Dom_size)
     save_mean_sig_wholeGenome = np.array(save_mean_sig_wholeGenome)
-    save_files(output_dir, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size, save_mean_sig_wholeGenome, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
+    save_files(output_dir, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size, save_mean_sig_wholeGenome, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
 
     # Copy the params.ini file to the output folder
     copy(INI_file, output_dir)
