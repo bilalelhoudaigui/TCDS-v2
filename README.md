@@ -111,7 +111,7 @@ The user can edit the following parameters :
   * *SIGMA_0* : The basal supercoiling density, which can be either specified explecitly or calculated based on Topoisomerases concentration.
     * *DELTA_X* : The spatial discretization in bp.
     * *RNAPS_NB* : The number of RNA Polymerases.
-    * *ITERATIONS_NB* : Simulation time (in seconds).
+    * *SIM_TIME* : Simulation time (in seconds).
     * *OUTPUT_STEP* : Time interval at which a graphical and/or text output is given (in seconds).
     * *GYRASE_CONC* : Gyrase concentration (in micromolar)
     * *TOPO_CONC* : Topoisomerase I concentration (micromolar)
@@ -148,7 +148,7 @@ DELTA_T = 2
 # Number of RNAP
 RNAPS_NB = 5
 # Number of iterations (s)
-ITERATIONS_NB = 6000
+SIM_TIME = 6000
 # Time interval at which a graphical and/or text output is given
 OUTPUT_STEP = 1
 # Gyrase concentration (micromolar)
