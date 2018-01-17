@@ -53,14 +53,14 @@ def read_config_file_v2(path):
     DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
     DELTA_T = config.getfloat('SIMULATION', 'DELTA_T')
     RNAPS_NB = config.getint('SIMULATION', 'RNAPS_NB')
-    ITERATIONS_NB = config.getfloat('SIMULATION', 'ITERATIONS_NB')
+    SIM_TIME = config.getfloat('SIMULATION', 'SIM_TIME')
     OUTPUT_STEP = config.getfloat('SIMULATION', 'OUTPUT_STEP')
 
     GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
     TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
     TOPO_CTE = config.getfloat('SIMULATION', 'TOPO_CTE')
     GYRASE_CTE = config.getfloat('SIMULATION', 'GYRASE_CTE')
-    TOPO_EFFICIENCY = config.getfloat('SIMULATION', 'TOPO_EFFICIENCY')
+    #TOPO_EFFICIENCY = config.getfloat('SIMULATION', 'TOPO_EFFICIENCY')
     k_GYRASE = config.getfloat('SIMULATION', 'k_GYRASE')
     x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
     k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
@@ -68,7 +68,7 @@ def read_config_file_v2(path):
     # Calculate SIGMA_0 based on Topoisomerases concentration.
     #SIGMA_0 = 0 #((-np.log(((GYRASE_CONC*GYRASE_CTE)/TOPO_CONC*TOPO_CTE)-1))/k)+x_0
 
-    return GFF_file, TSS_file, TTS_file, Prot_file, m, sigma_t, epsilon, SIGMA_0, DELTA_X, DELTA_T, RNAPS_NB, ITERATIONS_NB, OUTPUT_STEP, GYRASE_CONC, TOPO_CONC, TOPO_CTE, GYRASE_CTE, TOPO_EFFICIENCY, k_GYRASE, x0_GYRASE, k_TOPO, x0_TOPO
+    return GFF_file, TSS_file, TTS_file, Prot_file, m, sigma_t, epsilon, SIGMA_0, DELTA_X, DELTA_T, RNAPS_NB, SIM_TIME, OUTPUT_STEP, GYRASE_CONC, TOPO_CONC, TOPO_CTE, GYRASE_CTE, k_GYRASE, x0_GYRASE, k_TOPO, x0_TOPO
 
 ###################### Reading files ######################
 
@@ -274,14 +274,14 @@ def start_transcribing(INI_file, output_dir):
     DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
     DELTA_T = config.getfloat('SIMULATION', 'DELTA_T')
     RNAPS_NB = config.getint('SIMULATION', 'RNAPS_NB')
-    ITERATIONS_NB = config.getfloat('SIMULATION', 'ITERATIONS_NB')
+    SIM_TIME = config.getfloat('SIMULATION', 'SIM_TIME')
     OUTPUT_STEP = config.getfloat('SIMULATION', 'OUTPUT_STEP')
 
     GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
     TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
     TOPO_CTE = config.getfloat('SIMULATION', 'TOPO_CTE')
     GYRASE_CTE = config.getfloat('SIMULATION', 'GYRASE_CTE')
-    TOPO_EFFICIENCY = config.getfloat('SIMULATION', 'TOPO_EFFICIENCY')
+    #TOPO_EFFICIENCY = config.getfloat('SIMULATION', 'TOPO_EFFICIENCY')
     k_GYRASE = config.getfloat('SIMULATION', 'k_GYRASE')
     x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
     k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
@@ -293,7 +293,7 @@ def start_transcribing(INI_file, output_dir):
     os.makedirs(output_dir, exist_ok=True)
     
     # path to the input files (remove the "params.ini" from the path)
-    pth = INI_file[:-10]
+    pth = INI_file.rpartition("/")[0]
     gff_df_raw = load_gff(pth+GFF_file)
     tss = load_tab_file(pth+TSS_file)
     tts = load_tab_file(pth+TTS_file)
@@ -390,14 +390,14 @@ def start_transcribing(INI_file, output_dir):
     tr_times = col.defaultdict(list)
 
     # numpy array where all RNAPs info will be saved except the nbr_RNAPs_hooked
-    save_RNAPs_info = np.full([RNAPS_NB, 2, int(ITERATIONS_NB/DELTA_T)], np.nan) # nbr d'ele (cols)
+    save_RNAPs_info = np.full([RNAPS_NB, 2, int(SIM_TIME/DELTA_T)], np.nan) # nbr d'ele (cols)
 
     # this array will contain the number of RNAPs hooked at each time step
     # the length of the array is equivalent to the simulation length
-    save_nbr_RNAPs_hooked = np.full(int(ITERATIONS_NB/DELTA_T), np.nan) 
+    save_nbr_RNAPs_hooked = np.full(int(SIM_TIME/DELTA_T), np.nan) 
 
     # the same for transcripts info
-    save_tr_info = np.full([len(tr_id), 2, int(ITERATIONS_NB/DELTA_T)], np.nan) 
+    save_tr_info = np.full([len(tr_id), 2, int(SIM_TIME/DELTA_T)], np.nan) 
 
     # in those variables, we will save/append info in each time step to save them as --> all_res ;-)
     save_Barr_sigma = list()
@@ -419,7 +419,7 @@ def start_transcribing(INI_file, output_dir):
     # in the case of RNAP_NBR = 0
     RNAPs_hooked_id = []
 
-    for t in range(0,int(ITERATIONS_NB/DELTA_T)):
+    for t in range(0,int(SIM_TIME/DELTA_T)):
         # we need to know each TSS belong to which Domaine
         TSS_pos_idx = np.searchsorted(Barr_pos, TSS_pos)
         # after knowing the domaine of each TSS we can get sigma
@@ -444,7 +444,7 @@ def start_transcribing(INI_file, output_dir):
             picked_tr_hooked_id = picked_tr[np.where(picked_tr!=-1)[0]]
             picked_tr_unhooked_id = picked_tr[np.where(picked_tr==-1)[0]]
 
-            new_RNAPs_hooked_id = RNAPs_unhooked_id[np.where(picked_tr!=-1)]
+            new_RNAPs_hooked_id = RNAPs_unhooked_id[np.where(picked_tr!=-1)[0]]
 
             RNAPs_tr[new_RNAPs_hooked_id] = picked_tr[picked_tr!=-1]
             RNAPs_strand[new_RNAPs_hooked_id] = tr_strand[picked_tr[np.where(picked_tr!=-1)]]
@@ -630,7 +630,7 @@ def start_transcribing(INI_file, output_dir):
         print("Transcript{} : {}".format(i, v))
 
     return (GFF_file, TSS_file, TTS_file,
-            ITERATIONS_NB, RNAPS_NB,
+            SIM_TIME, RNAPS_NB,
             tr_nbr, tr_times, init_rate, 
             RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id,
             save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size,
@@ -658,14 +658,14 @@ def resume_transcription(INI_file, resume_path, output_dir):
     DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
     DELTA_T = config.getfloat('SIMULATION', 'DELTA_T')
     RNAPS_NB = config.getint('SIMULATION', 'RNAPS_NB')
-    ITERATIONS_NB = config.getfloat('SIMULATION', 'ITERATIONS_NB')
+    SIM_TIME = config.getfloat('SIMULATION', 'SIM_TIME')
     OUTPUT_STEP = config.getfloat('SIMULATION', 'OUTPUT_STEP')
 
     GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
     TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
     TOPO_CTE = config.getfloat('SIMULATION', 'TOPO_CTE')
     GYRASE_CTE = config.getfloat('SIMULATION', 'GYRASE_CTE')
-    TOPO_EFFICIENCY = config.getfloat('SIMULATION', 'TOPO_EFFICIENCY')
+    #TOPO_EFFICIENCY = config.getfloat('SIMULATION', 'TOPO_EFFICIENCY')
     k_GYRASE = config.getfloat('SIMULATION', 'k_GYRASE')
     x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
     k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
@@ -786,14 +786,14 @@ def resume_transcription(INI_file, resume_path, output_dir):
     tr_times = col.defaultdict(list)
 
     # numpy array where will save all RNAPs info
-    save_RNAPs_info = np.full([RNAPS_NB, 2, int(ITERATIONS_NB/DELTA_T)], np.nan) # nbr d'ele (cols)
+    save_RNAPs_info = np.full([RNAPS_NB, 2, int(SIM_TIME/DELTA_T)], np.nan) # nbr d'ele (cols)
 
     # this array will contain the number of RNAPs hooked at each time step
     # the length of the array is equivalent to the simulation length
-    save_nbr_RNAPs_hooked = np.full(int(ITERATIONS_NB/DELTA_T), np.nan) 
+    save_nbr_RNAPs_hooked = np.full(int(SIM_TIME/DELTA_T), np.nan) 
 
     # the same for transcripts info
-    save_tr_info = np.full([len(tr_id), 2, int(ITERATIONS_NB/DELTA_T)], np.nan) 
+    save_tr_info = np.full([len(tr_id), 2, int(SIM_TIME/DELTA_T)], np.nan) 
 
     # in those variables, we will save/append info in each time step to save them as --> all_res ;-)
     save_Barr_sigma = list()
@@ -816,7 +816,7 @@ def resume_transcription(INI_file, resume_path, output_dir):
     # will do the same for RNAPs_hooked_id
     RNAPs_hooked_id = RNAPs_info["RNAPs_hooked_id"]
     
-    for t in range(0,int(ITERATIONS_NB/DELTA_T)):
+    for t in range(0,int(SIM_TIME/DELTA_T)):
         # we need to know each TSS belong to which Domaine
         TSS_pos_idx = np.searchsorted(Barr_pos, TSS_pos)
 
@@ -846,7 +846,7 @@ def resume_transcription(INI_file, resume_path, output_dir):
             picked_tr_unhooked_id = picked_tr[np.where(picked_tr==-1)[0]]
 
             #new_RNAPs_hooked_id = RNAPs_unhooked_id[np.where(picked_tr==picked_tr_hooked_id)] #RNAPs_unhooked_id[picked_tr_hooked_id] 
-            new_RNAPs_hooked_id = RNAPs_unhooked_id[np.where(picked_tr!=-1)] #RNAPs_unhooked_id[picked_tr_hooked_id] 
+            new_RNAPs_hooked_id = RNAPs_unhooked_id[np.where(picked_tr!=-1)[0]] #RNAPs_unhooked_id[picked_tr_hooked_id] 
             RNAPs_tr[new_RNAPs_hooked_id] = picked_tr[picked_tr!=-1]
 
             RNAPs_strand[new_RNAPs_hooked_id] = tr_strand[picked_tr[np.where(picked_tr!=-1)]]
@@ -1034,7 +1034,7 @@ def resume_transcription(INI_file, resume_path, output_dir):
         print("Transcript{} : {}".format(i, v))
 
     return (GFF_file, TSS_file, TTS_file,
-            ITERATIONS_NB, RNAPS_NB,
+            SIM_TIME, RNAPS_NB,
             tr_nbr, tr_times, init_rate, 
             RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id,
             save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size,
