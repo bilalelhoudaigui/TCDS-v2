@@ -293,7 +293,7 @@ def start_transcribing(INI_file, output_dir):
     os.makedirs(output_dir, exist_ok=True)
     
     # path to the input files (remove the "params.ini" from the path)
-    pth = INI_file.rpartition("/")[0]
+    pth = INI_file.rpartition("/")[0] + "/"
     gff_df_raw = load_gff(pth+GFF_file)
     tss = load_tab_file(pth+TSS_file)
     tts = load_tab_file(pth+TTS_file)
