@@ -10,7 +10,7 @@ import matplotlib.gridspec as gridspec
 def plot_mean_sigma_genes_v2(INI_file, sigma_info, RNAPs_pos_info):
 
     # path to the input files (remove the "params.ini" from the path)
-    path = INI_file.rpartition("/")[0]
+    path = INI_file.rpartition("/")[0] + "/"
     if path=="":
         path="."
     # read the config file
