@@ -1,4 +1,4 @@
-import os
+import os,sys
 import configparser
 import pandas as pd
 import numpy as np
@@ -252,7 +252,7 @@ def save_files(output_dir,
 #         Transcription Process (Simulation)              #
 ###########################################################
 
-def start_transcribing(INI_file, output_dir):
+def start_transcribing(INI_file, output_dir=None):
     """ This is the start_transcribing docstring """
 
     ####################### Params info ###################
@@ -288,14 +288,23 @@ def start_transcribing(INI_file, output_dir):
     x0_TOPO = config.getfloat('SIMULATION', 'x0_TOPO')
     # Calculate SIGMA_0 based on Topoisomerases concentration.
     #SIGMA_0 = 0 #((-np.log(((GYRASE_CONC*GYRASE_CTE)/TOPO_CONC*TOPO_CTE)-1))/k)+x_0
-
-    # define the output directory
-    os.makedirs(output_dir, exist_ok=True)
     
     # path to the input files (remove the "params.ini" from the path)
     pth = INI_file.rpartition("/")[0] + "/"
     if pth=="/":
         pth="./"
+    if pth=="":
+        pth="."
+    pth+="/"
+
+    if output_dir==None:
+        output_dir=pth
+
+    try:
+        copy(INI_file, output_dir)
+    except:
+        print("Input file was not copied")
+
     gff_df_raw = load_gff(pth+GFF_file)
     tss = load_tab_file(pth+TSS_file)
     tts = load_tab_file(pth+TTS_file)
@@ -625,7 +634,7 @@ def start_transcribing(INI_file, output_dir):
     save_files(output_dir, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size, save_mean_sig_wholeGenome, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
 
     # Copy the paramse to the output folder
-    copy(INI_file, output_dir)
+    #copy(INI_file, output_dir)
 
     print("Simulation completed successfully !! \nNumber of transcripts : \n")
     for i, v in enumerate(tr_nbr):
@@ -1029,7 +1038,7 @@ def resume_transcription(INI_file, resume_path, output_dir):
     save_files(output_dir, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size, save_mean_sig_wholeGenome, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
 
     # Copy the params.ini file to the output folder
-    copy(INI_file, output_dir)
+    #copy(INI_file, output_dir)
 
     print("Simulation completed successfully !! \nNumber of transcripts : \n")
     for i, v in enumerate(tr_nbr):
@@ -1041,3 +1050,13 @@ def resume_transcription(INI_file, resume_path, output_dir):
             RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id,
             save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size,
             cov_bp, tr_end)
+
+
+if __name__ == '__main__':    
+    INI_file=sys.argv[1]
+    try:
+        output_dir=sys.argv[2]
+        start_transcribing(INI_file, output_dir)
+    except:
+        start_transcribing(INI_file)
+    

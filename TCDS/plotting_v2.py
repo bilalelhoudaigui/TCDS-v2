@@ -4,15 +4,32 @@ import matplotlib.pyplot as plt
 import dnaplotlib as dpl
 # gridspec is a module which specifies the location of the subplot in the figure.
 import matplotlib.gridspec as gridspec
+import matplotlib.pyplot as plt
+import matplotlib.colors as cm
+import math
+import matplotlib.font_manager as font_manager
+plt.rcParams.update({'pdf.fonttype': 42})
+plt.rcParams.update({'ps.fonttype': 42})
+plt.rcParams.update({'font.size': 10})
+plt.rcParams.update({'legend.fontsize': 9})
+#plt.rcParams.update({'mathtex.fontset': "cm"})
+plt.rcParams.update({'font.family': "Arial"})
+
+
+exts=[".pdf",".svg",".png"]
 
 ###################### Plotting #######################
 
-def plot_mean_sigma_genes_v2(INI_file, sigma_info, RNAPs_pos_info):
-
+def plot_genome(ax_dna, INI_file):
+    """
+    Function that plots a genome from an INI file and puts it into a subplot
+    """
+    
     # path to the input files (remove the "params.ini" from the path)
-    path = INI_file.rpartition("/")[0] + "/"
-    if path=="/":
-        path="./"
+    path = INI_file.rpartition("/")[0]
+    if path=="":
+        path="."
+    path+="/"
     # read the config file
     config = sim.read_config_file(INI_file)
     # get inputs infos from the config file
@@ -46,9 +63,6 @@ def plot_mean_sigma_genes_v2(INI_file, sigma_info, RNAPs_pos_info):
 
     strands = sim.str2num(gff_df['strand'].values)
 
-    # Create the figure and all axes to draw to
-    fig = plt.figure(1, figsize=(9,6)) # 3.2,2.7
-    gs = gridspec.GridSpec(2, 1, height_ratios=[9, 3, 1])
     # Color maps for formatting
     col_map = {}
     col_map['red']     = (0.95, 0.30, 0.25)
@@ -73,7 +87,8 @@ def plot_mean_sigma_genes_v2(INI_file, sigma_info, RNAPs_pos_info):
     for i in gff_df.index.values:
         opt_CDSs.append({'label':'Gene%s \n%.03f'%(str(i+1),Kon[i]), 
                          'label_style':'italic', 
-                         'label_y_offset':-5, 
+                         'label_y_offset':-5,
+                         'label_size':9,
                          'color':col_map['orange']})
         # Design of the construct
         if strands[i] == True:
@@ -103,9 +118,6 @@ def plot_mean_sigma_genes_v2(INI_file, sigma_info, RNAPs_pos_info):
             design.append(Ts[i])
             design.append(CDSs[i]) 
             design.append(Ps[i])
-        
-    ax_mean_sig = plt.subplot(gs[0])
-    ax_dna = plt.subplot(gs[1])
 
     # Redender the DNA
     dr = dpl.DNARenderer(scale=7, linewidth=1)
@@ -121,23 +133,51 @@ def plot_mean_sigma_genes_v2(INI_file, sigma_info, RNAPs_pos_info):
     
     ax_dna.plot([cov_bp[0],cov_bp[-1]], [0,0], color=(0,0,0), linewidth=1.0, zorder=1)
     ax_dna.axis('off')
+
+    return SIGMA_0, DELTA_X, cov_bp
+
+
+def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None):
+    """
+    Plots a genome into an output figure file. Optionally, make a second plot with one or several signals along the genome and/or RNAP positions. 
+    - the signals must have the same size as the genome in reduced units. They are a list of tuples (label, array of values)
+    - the RNAPs are shown as red circles. it is an array of positions
+    """
+    # Create the figure and all axes to draw to
+
+    if signals==None and RNAPs==None:
+        fig = plt.figure(1, figsize=(5,1)) # 3.2,2.7
+        ax_dna=plt.subplot()
+        SIGMA_0, cov_bp=plot_genome(ax_dna, INI_file)
+    else:
+        fig = plt.figure(1, figsize=(9,6)) # 3.2,2.7
+        gs = gridspec.GridSpec(2, 1, height_ratios=[1, 3])
+        
+        ax_sig = plt.subplot(gs[0])
+        ax_dna = plt.subplot(gs[1])
+        
+        SIGMA_0, DELTA_X, cov_bp=plot_genome(ax_dna, INI_file)
+        
+        # plot of signals
+        if signals!=None:
+            for slab,s in signals:
+                ax_sig.plot(cov_bp, s, linewidth= 1.5, label=slab)
+                ax_sig.legend(loc='best', fontsize = 12)
+                #ax_sig.set_ylim([-0.2,0.2])
+            ax_sig.set_xlim([0, cov_bp[-1]])
+            ax_sig.set_ylabel(r'$\sigma(x)$')
+            ax_sig.set_xlabel('Position (bp)')
+
+        if RNAPs!=None:
+            print(RNAPs)
+            print(np.full(len(RNAPs), SIGMA_0, dtype=float))
+            ax_sig.plot(RNAPs*DELTA_X, np.full(len(RNAPs), SIGMA_0, dtype=float), 'o', markersize=12, label = "RNA Polymerase")
+            #ax_mean_sig.set_ylim([-0.2, 0.2])
+    for ext in exts:
+        plt.savefig(outfile+ext)
+
+
     
-    # plot of sigma and mean of sigma
-    plt.ion()
-    ax_mean_sig.plot(cov_bp, sigma_info, linewidth= 1.5)
-    ax_mean_sig.legend(loc='best', fontsize = 12)
-    ax_mean_sig.set_ylim([-0.2,0.2])
-    ax_mean_sig.set_xlim([0, cov_bp[-1]])
-
-    #ax_mean_sig.set_title(r"Title goes here", fontsize = 13)
-    ax_mean_sig.set_ylabel(r'Supercoiling density $(\sigma)$')
-    ax_mean_sig.set_xlabel('Position (bp)')
-    ax_mean_sig.plot(RNAPs_pos_info*DELTA_X, np.full(len(RNAPs_pos_info), SIGMA_0, dtype=float), 'ro', markersize=12, label = "RNA Polymerase")
-    ax_mean_sig.set_ylim([-0.2, 0.2])
-    plt.pause(0.001)
-    plt.gcf().clear()
-    plt.show()  
-
 
 # Plot the supercoiling density before and after adding Gyrase (Chong experiment)
 def plot_topoI_gyrase_sigma(output_dir_pre, output_dir_post):
