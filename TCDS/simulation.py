@@ -204,7 +204,7 @@ def calc_sigma(Barr_sigma, GYRASE_CONC, k_GYRASE, x0_GYRASE, GYRASE_CTE, TOPO_CO
 def save_files(output_dir, 
                 Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma,
                 tr_nbr, tr_times, save_RNAPs_info, save_tr_info, 
-                save_Barr_sigma, save_Dom_size, save_mean_sig_wholeGenome,
+                save_Dom_sigma, save_Barr_pos, save_mean_sig_wholeGenome,
                 DELTA_X, RNAPs_genSC,
                 RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, 
                 RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked,
@@ -246,7 +246,7 @@ def save_files(output_dir,
     # Save all info
     np.savez("%s/all_res/save_RNAPs_info" %output_dir, RNAPs_info = save_RNAPs_info)
     np.savez("%s/all_res/save_tr_info" %output_dir, tr_info = save_tr_info)
-    np.savez("%s/all_res/save_sigma_info" %output_dir, Barr_sigma_info = save_Barr_sigma, Dom_size_info = save_Dom_size, mean_sig_wholeGenome = save_mean_sig_wholeGenome)
+    np.savez("%s/all_res/save_sigma_info" %output_dir, dom_sigma_info = save_Dom_sigma, save_Barr_pos = save_Barr_pos, mean_sig_wholeGenome = save_mean_sig_wholeGenome)
 
 ###########################################################
 #         Transcription Process (Simulation)              #
@@ -411,8 +411,9 @@ def start_transcribing(INI_file, output_dir=None):
     save_tr_info = np.full([len(tr_id), 2, int(SIM_TIME/DELTA_T)], np.nan) 
 
     # in those variables, we will save/append info in each time step to save them as --> all_res ;-)
-    save_Barr_sigma = list()
-    save_Dom_size = list()
+    save_Dom_sigma = list()
+    #save_Dom_size = list()
+    save_Barr_pos = list()
     save_mean_sig_wholeGenome = list()
 
     ########### Go !
@@ -624,14 +625,16 @@ def start_transcribing(INI_file, output_dir=None):
             save_tr_info[:, 0, t] = tr_nbr
             save_tr_info[:, 1, t] = init_rate
         
-        save_Barr_sigma.append(Barr_sigma)
-        save_Dom_size.append(Dom_size)
+        save_Dom_sigma.append(Barr_sigma)
+        #save_Dom_size.append(Dom_size)
+        save_Barr_pos.append(Barr_pos)
         save_mean_sig_wholeGenome.append(mean_sig_wholeGenome)
         
-    save_Barr_sigma = np.array(save_Barr_sigma)
-    save_Dom_size = np.array(save_Dom_size)
+    save_Dom_sigma = np.array(save_Dom_sigma)
+    #save_Dom_size = np.array(save_Dom_size)
+    save_Barr_pos = np.array(save_Barr_pos)
     save_mean_sig_wholeGenome = np.array(save_mean_sig_wholeGenome)
-    save_files(output_dir, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size, save_mean_sig_wholeGenome, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
+    save_files(output_dir, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Barr_pos, save_mean_sig_wholeGenome, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
 
     # Copy the paramse to the output folder
     #copy(INI_file, output_dir)
@@ -644,7 +647,7 @@ def start_transcribing(INI_file, output_dir=None):
             SIM_TIME, RNAPS_NB,
             tr_nbr, tr_times, init_rate, 
             RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id,
-            save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size,
+            save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Barr_pos,
             cov_bp, tr_end)
 
 # This function for resuming the simulation by reading npz files
@@ -807,7 +810,7 @@ def resume_transcription(INI_file, resume_path, output_dir):
     save_tr_info = np.full([len(tr_id), 2, int(SIM_TIME/DELTA_T)], np.nan) 
 
     # in those variables, we will save/append info in each time step to save them as --> all_res ;-)
-    save_Barr_sigma = list()
+    save_Dom_sigma = list()
     save_Dom_size = list()
     save_mean_sig_wholeGenome = list()
 
@@ -1028,14 +1031,15 @@ def resume_transcription(INI_file, resume_path, output_dir):
             save_tr_info[:, 0, t] = tr_nbr
             save_tr_info[:, 1, t] = init_rate
 
-        save_Barr_sigma.append(Barr_sigma)
+        save_Dom_sigma.append(Barr_sigma)
+        save_Barr_pos.append(Barr_pos)
         save_Dom_size.append(Dom_size)
         save_mean_sig_wholeGenome.append(mean_sig_wholeGenome)
 
-    save_Barr_sigma = np.array(save_Barr_sigma)
+    save_Dom_sigma = np.array(save_Dom_sigma)
     save_Dom_size = np.array(save_Dom_size)
     save_mean_sig_wholeGenome = np.array(save_mean_sig_wholeGenome)
-    save_files(output_dir, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size, save_mean_sig_wholeGenome, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
+    save_files(output_dir, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Dom_size, save_mean_sig_wholeGenome, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
 
     # Copy the params.ini file to the output folder
     #copy(INI_file, output_dir)
@@ -1048,7 +1052,7 @@ def resume_transcription(INI_file, resume_path, output_dir):
             SIM_TIME, RNAPS_NB,
             tr_nbr, tr_times, init_rate, 
             RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id,
-            save_RNAPs_info, save_tr_info, save_Barr_sigma, save_Dom_size,
+            save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Dom_size,
             cov_bp, tr_end)
 
 

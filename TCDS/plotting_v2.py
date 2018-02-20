@@ -6,11 +6,12 @@ import dnaplotlib as dpl
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 import matplotlib.colors as cm
+import matplotlib.patches as pat
 import math
 import matplotlib.font_manager as font_manager
 plt.rcParams.update({'pdf.fonttype': 42})
 plt.rcParams.update({'ps.fonttype': 42})
-plt.rcParams.update({'font.size': 10})
+plt.rcParams.update({'font.size': 11})
 plt.rcParams.update({'legend.fontsize': 9})
 #plt.rcParams.update({'mathtex.fontset': "cm"})
 plt.rcParams.update({'font.family': "Arial"})
@@ -134,9 +135,39 @@ def plot_genome(ax_dna, INI_file):
     ax_dna.plot([cov_bp[0],cov_bp[-1]], [0,0], color=(0,0,0), linewidth=1.0, zorder=1)
     ax_dna.axis('off')
 
-    return SIGMA_0, DELTA_X, cov_bp
+    return SIGMA_0, DELTA_X, BARR_FIX, cov_bp
 
 
+def compute_superc_distrib(Barr_pos, SC, cov_bp):
+    """
+    Computes the array of SC from Barrier positions and SC values, and arange of genome length
+    """
+    n=len(cov_bp)
+    if len(Barr_pos)>1:
+        print(Barr_pos)
+        print(SC)
+        print(cov_bp)
+        sizes=[Barr_pos[0]]+list(Barr_pos[1:]-Barr_pos[:(-1)])+[n-Barr_pos[-1]]
+        SC=[SC[-1]]+list(SC)
+        return np.repeat(SC, sizes)
+    
+def plot_superc_distrib(ax, Barr_pos, SC, cov_bp, DELTA_X, Barr_fix):
+    """
+    Computes the array of SC from Barrier positions and SC values, and arange of genome length
+    """
+    n=len(cov_bp)
+    for i,b in enumerate(Barr_pos[:(-1)]):
+        x=np.arange(b,Barr_pos[i+1]+1)*DELTA_X
+        ax.plot(x,np.full(len(x),SC[i]),color="blue")
+    x=np.arange(Barr_pos[0]+1)*DELTA_X
+    ax.plot(x,np.full(len(x),SC[-1]),color="blue")
+    x=np.arange(Barr_pos[-1],n)*DELTA_X
+    ax.plot(x,np.full(len(x),SC[-1]),color="blue")
+    #for b in Barr_pos:
+        #ax.axvline(b*DELTA_X,color="black")
+        
+
+    
 def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None):
     """
     Plots a genome into an output figure file. Optionally, make a second plot with one or several signals along the genome and/or RNAP positions. 
@@ -145,34 +176,50 @@ def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None):
     """
     # Create the figure and all axes to draw to
 
-    if signals==None and RNAPs==None:
+    if signals==None:
         fig = plt.figure(1, figsize=(5,1)) # 3.2,2.7
         ax_dna=plt.subplot()
-        SIGMA_0, cov_bp=plot_genome(ax_dna, INI_file)
+        SIGMA_0, DELTA_X, BARR_FIX, cov_bp=plot_genome(ax_dna, INI_file)
+        if RNAPs!=None:
+            ax_dna.plot(RNAPs*DELTA_X, np.full(len(RNAPs), 0.5, dtype=float), 'o', markersize=10, color="blue", zorder=100)
+
     else:
-        fig = plt.figure(1, figsize=(9,6)) # 3.2,2.7
-        gs = gridspec.GridSpec(2, 1, height_ratios=[1, 3])
+        fig = plt.figure(1, figsize=(7,3)) # 3.2,2.7
+        gs = gridspec.GridSpec(2, 1, height_ratios=[1,1])
         
-        ax_sig = plt.subplot(gs[0])
-        ax_dna = plt.subplot(gs[1])
+        ax_sig = plt.subplot(gs[1])
+        ax_dna = plt.subplot(gs[0])
         
-        SIGMA_0, DELTA_X, cov_bp=plot_genome(ax_dna, INI_file)
+        SIGMA_0, DELTA_X, BARR_FIX, cov_bp=plot_genome(ax_dna, INI_file)
+        
         
         # plot of signals
         if signals!=None:
-            for slab,s in signals:
-                ax_sig.plot(cov_bp, s, linewidth= 1.5, label=slab)
+            for si in signals:
+                if len(si)==2:
+                    # case where we plot an array of values along the genome
+                    slab,s=si
+                    ax_sig.plot(cov_bp,s,linewidth= 1.5, label=slab)
+                elif len(si)==3:
+                    # case where we compute the SC distribution along the genome at a timepoint
+                    slab,SC,Barr_pos=si
+                    plot_superc_distrib(ax_sig,Barr_pos,SC,cov_bp,DELTA_X,BARR_FIX)
                 ax_sig.legend(loc='best', fontsize = 12)
                 #ax_sig.set_ylim([-0.2,0.2])
             ax_sig.set_xlim([0, cov_bp[-1]])
             ax_sig.set_ylabel(r'$\sigma(x)$')
             ax_sig.set_xlabel('Position (bp)')
-
-        if RNAPs!=None:
-            print(RNAPs)
-            print(np.full(len(RNAPs), SIGMA_0, dtype=float))
-            ax_sig.plot(RNAPs*DELTA_X, np.full(len(RNAPs), SIGMA_0, dtype=float), 'o', markersize=12, label = "RNA Polymerase")
-            #ax_mean_sig.set_ylim([-0.2, 0.2])
+            if RNAPs!=None:
+                ax_dna.plot(RNAPs*DELTA_X, np.full(len(RNAPs), 0, dtype=float), 'o', markersize=10, color="blue", zorder=100)
+                for x in RNAPs:
+                    print(x*DELTA_X)
+                    ax_dna.axvline(x=x*DELTA_X,ymin=-1.5,ymax=0.5,color="blue",ls="--",lw=1,zorder=110,clip_on=False)
+                    #ax_dna.plot([x*DELTA_X,x*DELTA_X],[0.5,0],zorder=120)
+                    con=pat.ConnectionPatch(xyA=(x*DELTA_X, 0.5), xyB=(x*DELTA_X, 0.), coordsA="data", coordsB="data", axesA=ax_dna, axesB=ax_sig, color="red")
+                    ax_sig.add_artist(con)
+            for x in BARR_FIX:
+                ax_dna.axvline(x=x,ymin=-1.5,ymax=0.5,color="black",ls="--",lw=1,zorder=110,clip_on=False)
+    plt.tight_layout()
     for ext in exts:
         plt.savefig(outfile+ext)
 
