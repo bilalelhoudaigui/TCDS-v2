@@ -7,6 +7,7 @@ from pylab import *
 import errno
 import csv
 from shutil import copy
+from scipy.optimize import fsolve
 
 ###########################################################
 #                       Functions                         #
@@ -49,7 +50,6 @@ def read_config_file_v2(path):
     epsilon = config.getfloat('GLOBAL', 'epsilon')
 
     RNAPs_genSC = config.getfloat('SIMULATION', 'RNAPs_genSC')
-    SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
     DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
     DELTA_T = config.getfloat('SIMULATION', 'DELTA_T')
     RNAPS_NB = config.getint('SIMULATION', 'RNAPS_NB')
@@ -65,9 +65,19 @@ def read_config_file_v2(path):
     x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
     k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
     x0_TOPO = config.getfloat('SIMULATION', 'x0_TOPO')
-    # Calculate SIGMA_0 based on Topoisomerases concentration.
-    #SIGMA_0 = 0 #((-np.log(((GYRASE_CONC*GYRASE_CTE)/TOPO_CONC*TOPO_CTE)-1))/k)+x_0
 
+
+    # Calculate SIGMA_0 based on Topoisomerases concentration.
+    try:
+        SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
+    except:
+        # compute sigma_0 from concentrations of topoisomerases
+        func = lambda sig0 : -GYRASE_CONC*1/(1+np.exp(-k_GYRASE*(sig0-x0_GYRASE)))*GYRASE_CTE + TOPO_CONC*1/(1+np.exp(k_TOPO*(sig0-x0_TOPO)))*TOPO_CTE
+        sig0_initial_guess = -0.03
+        SIGMA_0 = fsolve(func, sig0_initial_guess)[0]
+        if not isinstance(SIGMA_0,float):
+            print("Error computing SIGMA_0")
+            
     return GFF_file, TSS_file, TTS_file, Prot_file, m, sigma_t, epsilon, SIGMA_0, DELTA_X, DELTA_T, RNAPS_NB, SIM_TIME, OUTPUT_STEP, GYRASE_CONC, TOPO_CONC, TOPO_CTE, GYRASE_CTE, k_GYRASE, x0_GYRASE, k_TOPO, x0_TOPO
 
 ###################### Reading files ######################
@@ -309,7 +319,7 @@ def start_transcribing(INI_file, output_dir=None):
     tss = load_tab_file(pth+TSS_file)
     tts = load_tab_file(pth+TTS_file)
     prot = load_tab_file(pth+Prot_file)
-
+    
     # get the TSS position
     TSS_pos = (tss['TSS_pos'].values/DELTA_X).astype(int)
     
@@ -370,8 +380,11 @@ def start_transcribing(INI_file, output_dir=None):
     
     # just for the echo we can assign it directely
     Barr_pos = np.copy(Barr_fix)
+    #if len(Barr_fix)!=0:   # update in case where no fixed barriers !!!
     Dom_size = np.ediff1d(Barr_pos)
     Dom_size = np.append(Dom_size, genome-Barr_fix[-1]+Barr_pos[0])
+    #else:
+    #    Dom_size=np.array([genome]
     
     Barr_type = np.full(len(Barr_fix), 0, dtype=int)
     Barr_sigma = np.full(len(Barr_fix), SIGMA_0)

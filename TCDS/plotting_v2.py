@@ -16,7 +16,7 @@ plt.rcParams.update({'legend.fontsize': 9})
 #plt.rcParams.update({'mathtex.fontset': "cm"})
 plt.rcParams.update({'font.family': "Arial"})
 
-
+global exts
 exts=[".pdf",".svg",".png"]
 
 ###################### Plotting #######################
@@ -177,7 +177,7 @@ def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None):
     # Create the figure and all axes to draw to
 
     if signals==None:
-        fig = plt.figure(1, figsize=(5,1)) # 3.2,2.7
+        fig = plt.figure(1, figsize=(7,1.5)) # 3.2,2.7
         ax_dna=plt.subplot()
         SIGMA_0, DELTA_X, BARR_FIX, cov_bp=plot_genome(ax_dna, INI_file)
         if RNAPs!=None:
@@ -213,12 +213,12 @@ def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None):
                 ax_dna.plot(RNAPs*DELTA_X, np.full(len(RNAPs), 0, dtype=float), 'o', markersize=10, color="blue", zorder=100)
                 for x in RNAPs:
                     print(x*DELTA_X)
-                    ax_dna.axvline(x=x*DELTA_X,ymin=-1.5,ymax=0.5,color="blue",ls="--",lw=1,zorder=110,clip_on=False)
+                    ax_dna.axvline(x=x*DELTA_X,ymin=-1.5,ymax=0.5,color="blue",ls="--",lw=.8,zorder=110,clip_on=False)
                     #ax_dna.plot([x*DELTA_X,x*DELTA_X],[0.5,0],zorder=120)
-                    con=pat.ConnectionPatch(xyA=(x*DELTA_X, 0.5), xyB=(x*DELTA_X, 0.), coordsA="data", coordsB="data", axesA=ax_dna, axesB=ax_sig, color="red")
-                    ax_sig.add_artist(con)
+                    # con=pat.ConnectionPatch(xyA=(x*DELTA_X, 0.5), xyB=(x*DELTA_X, 0.), coordsA="data", coordsB="data", axesA=ax_dna, axesB=ax_sig, color="red")
+                    # ax_sig.add_artist(con)
             for x in BARR_FIX:
-                ax_dna.axvline(x=x,ymin=-1.5,ymax=0.5,color="black",ls="--",lw=1,zorder=110,clip_on=False)
+                ax_dna.axvline(x=x,ymin=-1.5,ymax=0.5,color="black",ls="--",lw=0.8,zorder=110,clip_on=False)
     plt.tight_layout()
     for ext in exts:
         plt.savefig(outfile+ext)
