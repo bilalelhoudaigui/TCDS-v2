@@ -318,8 +318,8 @@ def start_transcribing(INI_file, output_dir=None):
     gff_df_raw = load_gff(pth+GFF_file)
     tss = load_tab_file(pth+TSS_file)
     tts = load_tab_file(pth+TTS_file)
-    prot = load_tab_file(pth+Prot_file)
-    
+    # we will load the prot_file later
+
     # get the TSS position
     TSS_pos = (tss['TSS_pos'].values/DELTA_X).astype(int)
     
@@ -376,23 +376,36 @@ def start_transcribing(INI_file, output_dir=None):
 
     genome = int(genome_size/DELTA_X)
 
-    Barr_fix = (prot['prot_pos'].values/DELTA_X).astype(int)
+    # try to read the prot_file which contains the fixed barriers positions
+    try:
+        prot = load_tab_file(pth+Prot_file)
+        Barr_fix = (prot['prot_pos'].values/DELTA_X).astype(int)
     
-    # just for the echo we can assign it directely
-    Barr_pos = np.copy(Barr_fix)
-    #if len(Barr_fix)!=0:   # update in case where no fixed barriers !!!
-    Dom_size = np.ediff1d(Barr_pos)
-    Dom_size = np.append(Dom_size, genome-Barr_fix[-1]+Barr_pos[0])
-    #else:
-    #    Dom_size=np.array([genome]
+        # just for the echo we can assign it directely
+        Barr_pos = np.copy(Barr_fix)
+
+        #if len(Barr_fix)!=0:   # update in case where no fixed barriers !!!
+        Dom_size = np.ediff1d(Barr_pos)
+        Dom_size = np.append(Dom_size, genome-Barr_fix[-1]+Barr_pos[0])
     
-    Barr_type = np.full(len(Barr_fix), 0, dtype=int)
-    Barr_sigma = np.full(len(Barr_fix), SIGMA_0)
+        Barr_type = np.full(len(Barr_fix), 0, dtype=int)
+        Barr_sigma = np.full(len(Barr_fix), SIGMA_0)
+        # here we need to make an Barr_ts_remain
+        # to track the position of each RNAPol
+        # each position in Barr_ts_remain is associated with the same position in Barr_pos
+        Barr_ts_remain = np.full(len(Barr_fix), NaN) # The Barr_ts_remain of fixed barr is NaN
+
+    # if prot_file is empty or doesn't exist then:
+    except (pd.io.common.EmptyDataError, OSError) as e:
+        # we'll have one Dom_size which is the whole genome
+        # There is no Barr_fix
+        Dom_size = np.array([genome])
+        # create the other variables
+        Barr_type = np.array([])
+        Barr_sigma = np.array([SIGMA_0]) # on the whole genome
+        Barr_pos = np.array([])
+        Barr_ts_remain = np.array([NaN]) 
     
-    # here we need to make an Barr_ts_remain
-    # to track the position of each RNAPol
-    # each position in Barr_ts_remain is associated with the same position in Barr_pos
-    Barr_ts_remain = np.full(len(Barr_fix), NaN) # The Barr_ts_remain of fixed barr is NaN
 
     ######### Variables used to get the coverage ##########
 
@@ -432,7 +445,6 @@ def start_transcribing(INI_file, output_dir=None):
     ########### Go !
 
     RNAPs_unhooked_id = np.copy(RNAPs_id)
-
     RNAPs_strand = np.full(RNAPS_NB, NaN)
     ts_beg = np.full(RNAPS_NB, NaN)
     ts_remain = np.full(RNAPS_NB, NaN)
@@ -446,24 +458,33 @@ def start_transcribing(INI_file, output_dir=None):
 
     for t in range(0,int(SIM_TIME/DELTA_T)):
         # we need to know each TSS belong to which Domaine
+        # if we have only one domaine (e.g no Barr_fix) then
+        # all the TSS belong to the only domaine that exists (e.g TSS_pos_idx will be 0)
         TSS_pos_idx = np.searchsorted(Barr_pos, TSS_pos)
         # after knowing the domaine of each TSS we can get sigma
         sigma_tr_start = Barr_sigma[TSS_pos_idx-1] 
+        # PS : in case we have one domaine (TSS_pos_idx is 0)
+        # and len(Barr_sigma) == 1 then Barr_sigma[-1] == Barr_sigma[0]
+        # so sigma_tr_start = Barr_sigma[-1] = Barr_sigma[0] ;)
+
         # get the initiation rates
+        # calculate the initiation rate of each transcript/gene
         init_rate = f_init_rate(tr_rate, sigma_tr_start, sigma_t, epsilon, m)
+        # use the calculated init_rate to get the probability
+        # of RNAPol's binding to each TSS (e.g prob_init_rate)
         sum_init_rate = np.sum(init_rate)
         prob_init_rate = f_prob_init_rate(init_rate, sum_init_rate, DELTA_T)
-
         if np.size(RNAPs_unhooked_id)!=0:
-            # get the unhooked rates
+            # get the probability of RNAPol's stay unhooked
             prob_unhooked_rate = f_prob_unhooked_rate(sum_init_rate, DELTA_T, len(RNAPs_unhooked_id))
             # craete the numpy array
             prob_unhooked_rate = np.full(len(RNAPs_unhooked_id), prob_unhooked_rate)
             all_prob = np.concatenate([prob_init_rate, prob_unhooked_rate])
+
             # create the numpy array that will contains [ nTSS , Unhooked RNAPS ]
             tss_and_unhooked_RNAPs = np.concatenate([tss_id, np.full(len(RNAPs_unhooked_id), -1, dtype=int)])
 
-            # pick up
+            # pick up a random RNAPol
             picked_tr = np.random.choice(tss_and_unhooked_RNAPs, len(RNAPs_unhooked_id), replace=False, p=all_prob) #RNAPs_unhooked_id
             # This is the KEY !
             picked_tr_hooked_id = picked_tr[np.where(picked_tr!=-1)[0]]
@@ -480,11 +501,15 @@ def start_transcribing(INI_file, output_dir=None):
 
             # take the position and use them to get the index in which u will insert them in Barr_pos array
             Barr_pos_RNAPs_idx = np.searchsorted(Barr_pos, RNAPs_pos[new_RNAPs_hooked_id])
-
             #after getting the idx, we start inserting
             Barr_pos = np.insert(Barr_pos, Barr_pos_RNAPs_idx, RNAPs_pos[new_RNAPs_hooked_id])
-            Dom_size = np.ediff1d(Barr_pos)
-            Dom_size = np.append(Dom_size, genome-Barr_pos[-1]+Barr_pos[0])
+            try:
+                # in casewe have at least two barriers
+                Dom_size = np.ediff1d(Barr_pos)
+                Dom_size = np.append(Dom_size, genome-Barr_pos[-1]+Barr_pos[0])
+            except IndexError:
+                Dom_size = np.array([genome])
+            
             Barr_type = np.insert(Barr_type, Barr_pos_RNAPs_idx, RNAPs_strand[new_RNAPs_hooked_id])
 
             # Now Sigma
@@ -522,10 +547,10 @@ def start_transcribing(INI_file, output_dir=None):
         old_sigma = Barr_sigma[rm_RNAPs_idx-1]
 
         # update Dom_size 
-        #Dom_size[rm_RNAPs_idx-1] += removed_dom_size 
+        Dom_size[rm_RNAPs_idx-1] += removed_dom_size 
         # or
-        Dom_size = np.ediff1d(Barr_pos)
-        Dom_size = np.append(Dom_size, genome-Barr_fix[-1]+Barr_fix[0])
+        #Dom_size = np.ediff1d(Barr_pos)
+        #Dom_size = np.append(Dom_size, genome-Barr_fix[-1]+Barr_fix[0])
         
         Barr_sigma[rm_RNAPs_idx-1] = (old_dom_size*old_sigma+removed_dom_size*removed_sigma)/(old_dom_size+removed_dom_size)
         
@@ -556,36 +581,39 @@ def start_transcribing(INI_file, output_dir=None):
         RNAPs_pos[np.where(RNAPs_strand == -1)]-=1
 
         # Update the Dom_size (+1 or -1)
-        Dom_size = np.ediff1d(Barr_pos)
-        Dom_size = np.append(Dom_size, genome-Barr_pos[-1]+Barr_pos[0])
+        try:
+            Dom_size = np.ediff1d(Barr_pos)
+            Dom_size = np.append(Dom_size, genome-Barr_pos[-1]+Barr_pos[0])
+        except IndexError:
+            Dom_size = np.array([genome])
         
         # UPDATE SIGMA
         # R_plus_pos : the ids of RNA pol in the + strand
         R_plus_pos = np.where(Barr_type == 1)[0].astype(int)
         # R_minus_pos : the ids of RNA pol in the - strand
         R_minus_pos = np.where(Barr_type == -1)[0].astype(int)
-
         #### Extract all types of domaines (Those are ids of domaines)
         # Barr_type_ahead to make the extraction circular ;)
         Barr_type_ahead = np.roll(Barr_type, -1)
-        # O +
+        # __|__________O+____
         Barr_Dom_RPlus = np.where((Barr_type==0) & (Barr_type_ahead==1))
-        # O -
+        # __|__________O-____
         Barr_Dom_RMinus = np.where((Barr_type==0) & (Barr_type_ahead==-1))
-        # O O
+        # __|__________|_____
         Barr_Dom_Barr = np.where((Barr_type==0) & (Barr_type_ahead==0))
-        # + +
+        # ___O+_________O+___
         RPlus_Dom_RPlus = np.where((Barr_type==1) & (Barr_type_ahead==1))
-        # - -
+        # ___O-_________O-___
         RMinus_Dom_RMinus = np.where((Barr_type==-1) & (Barr_type_ahead==-1))
-        # + -
+        # ___O+_________O-___
         RPlus_Dom_RMinus = np.where((Barr_type==1) & (Barr_type_ahead==-1))
-        # - +
+        # ___O-_________O+___
         RMinus_Dom_RPlus = np.where((Barr_type==-1) & (Barr_type_ahead==+1))
-        # - O
+        # ___O-_________|____
         RMinus_Dom_Barr = np.where((Barr_type==-1) & (Barr_type_ahead==0))
-        # + O
+        # ___O+_________|____
         RPlus_Dom_Barr = np.where((Barr_type_ahead==0) & (Barr_type==+1))
+        
 
         #### And then correct the value of Sigma in each case (before/after)
         corr_sig_Barr_Dom_RPlus = (Dom_size[Barr_Dom_RPlus]-1)/(Dom_size[Barr_Dom_RPlus]) # Sigma decrease x1
@@ -619,11 +647,34 @@ def start_transcribing(INI_file, output_dir=None):
         Barr_sigma[RMinus_Dom_RPlus] -= 2*RNAPs_genSC_all[RMinus_Dom_RPlus]
         Barr_sigma[RMinus_Dom_Barr] -= RNAPs_genSC_all[RMinus_Dom_Barr]
         Barr_sigma[RPlus_Dom_Barr] += RNAPs_genSC_all[RPlus_Dom_Barr]
+        # We shall consider the case in which we'll have one RNAPol
+        # transcribing from right or the left and without any existing barrier on the other side
+        # i : you can relace 'if' with None_Dom_RPlus = np.where((len(Barr_type)==1) & (Barr_type_ahead==1))
+        if len(Barr_type)==1:
+            # ____________O+_____
+            None_Dom_RPlus = np.where(Barr_type_ahead==1)
+            # ____________O-_____
+            None_Dom_RMinus = np.where(Barr_type_ahead==-1)
+            # __O+_______________
+            RPlus_Dom_None = np.where(Barr_type_ahead==1)
+            # __O-_______________
+            RMinus_Dom_None = np.where(Barr_type_ahead==-1)
+            # update the value of sigma (one Barr case)
+            Barr_sigma[None_Dom_RPlus] -= RNAPs_genSC_all[None_Dom_RPlus]
+            Barr_sigma[None_Dom_RMinus] += RNAPs_genSC_all[None_Dom_RMinus]
+            Barr_sigma[RPlus_Dom_None] += RNAPs_genSC_all[RPlus_Dom_None]
+            Barr_sigma[None_Dom_RMinus] -= RNAPs_genSC_all[None_Dom_RMinus]
+
         # Now calc_sigma
         Barr_sigma = calc_sigma(Barr_sigma, GYRASE_CONC, k_GYRASE, x0_GYRASE, GYRASE_CTE, TOPO_CONC, k_TOPO, x0_TOPO, TOPO_CTE, DELTA_T)
 
-        mean_sig_wholeGenome = np.sum(Barr_sigma*Dom_size)/genome
-        
+        try:
+            mean_sig_wholeGenome = np.sum(Barr_sigma*Dom_size)/genome
+        except ValueError:
+            # in case we have one RNAPol transcribing (No Barr_fix)
+            # ________O______________
+            mean_sig_wholeGenome = (Barr_sigma[0]+Barr_sigma[1])/2
+            
         # Update the initiation rate        
         init_rate = f_init_rate(tr_rate, sigma_tr_start, sigma_t, epsilon, m)
 
