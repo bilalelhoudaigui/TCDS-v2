@@ -385,7 +385,8 @@ def start_transcribing(INI_file, output_dir=None):
 
         # update in case where no fixed barriers !!!
         # abs in case we have Barr_pos[i+1]>Barr_pos[i] e.g: [64 57]
-        Dom_size = np.abs(np.ediff1d(Barr_pos))
+        Dom_size = np.abs(np.ediff1d(Barr_pos)) #, dtype=int
+
         Dom_size = np.append(Dom_size, genome-(np.max(Barr_pos)-np.min(Barr_pos)))
 
         Barr_type = np.full(len(Barr_fix), 0, dtype=int)
