@@ -66,7 +66,6 @@ def read_config_file_v2(path):
     k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
     x0_TOPO = config.getfloat('SIMULATION', 'x0_TOPO')
 
-
     # Calculate SIGMA_0 based on Topoisomerases concentration.
     try:
         SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
@@ -211,7 +210,7 @@ def calc_sigma(Barr_sigma, GYRASE_CONC, k_GYRASE, x0_GYRASE, GYRASE_CTE, TOPO_CO
 
 ###################### Saving files #######################
 
-def save_files(output_dir, 
+def save_files(output_path, 
                 Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma,
                 tr_nbr, tr_times, save_RNAPs_info, save_tr_info, 
                 save_Dom_sigma, save_Barr_pos, save_mean_sig_wholeGenome, save_Dom_size,
@@ -220,23 +219,23 @@ def save_files(output_dir,
                 RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked,
                 init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC):
 
-    # make sure that the output direcory exists, and create one if it's not
-    os.makedirs("%s/resume_sim" %output_dir, exist_ok=True)
-    os.makedirs("%s/all_res" %output_dir, exist_ok=True)
+    # make sure that the output direcory exists, and create one if it doesn't
+    os.makedirs("%s/resume_sim" %output_path, exist_ok=True)
+    os.makedirs("%s/all_res" %output_path, exist_ok=True)
 
     # save tr_nbr
     tr_nbr = pd.Series(tr_nbr)
-    tr_nbr.to_csv("%s/save_tr_nbr.csv" %output_dir, sep=';', index=False)
+    tr_nbr.to_csv("%s/save_tr_nbr.csv" %output_path, sep=';', index=False)
 
     # convert tr_times dict to pandas serie
     tr_times = pd.DataFrame.from_dict(tr_times, orient='index')
     # save the tr_times to csv file
-    tr_times.to_csv("%s/save_tr_times.csv" %output_dir, sep=';', index=True, header = False)
+    tr_times.to_csv("%s/save_tr_times.csv" %output_path, sep=';', index=True, header = False)
     # save the number of RNAPs hooked
-    np.savez("%s/save_nbr_RNAPs_hooked.npz" %output_dir, nbr_RNAPs_hooked = save_nbr_RNAPs_hooked)
+    np.savez("%s/save_nbr_RNAPs_hooked.npz" %output_path, nbr_RNAPs_hooked = save_nbr_RNAPs_hooked)
 
     # Save last info
-    np.savez("%s/resume_sim/resume_sim_RNAPs.npz" %output_dir, RNAPs_tr = RNAPs_tr, 
+    np.savez("%s/resume_sim/resume_sim_RNAPs.npz" %output_path, RNAPs_tr = RNAPs_tr, 
                                                                RNAPs_pos = RNAPs_pos, 
                                                                RNAPs_unhooked_id = RNAPs_unhooked_id,
                                                                RNAPs_strand = RNAPs_strand,
@@ -244,28 +243,65 @@ def save_files(output_dir,
                                                                ts_remain = ts_remain,
                                                                RNAPs_hooked_id = RNAPs_hooked_id)
 
-    np.savez("%s/resume_sim/resume_sim_tr.npz" %output_dir, tr_nbr = tr_nbr,
+    np.savez("%s/resume_sim/resume_sim_tr.npz" %output_path, tr_nbr = tr_nbr,
                                                             init_rate = init_rate)
 
-    np.savez("%s/resume_sim/resume_sim_Barr.npz" %output_dir, Barr_pos = Barr_pos, 
+    np.savez("%s/resume_sim/resume_sim_Barr.npz" %output_path, Barr_pos = Barr_pos, 
                                                               Barr_type = Barr_type, 
                                                               Dom_size = Dom_size, 
                                                               Barr_ts_remain = Barr_ts_remain, 
                                                               Barr_sigma = Barr_sigma)
     
     # Save all info
-    np.savez("%s/all_res/save_RNAPs_info" %output_dir, RNAPs_info = save_RNAPs_info)
-    np.savez("%s/all_res/save_tr_info" %output_dir, tr_info = save_tr_info)
-    np.savez("%s/all_res/save_sigma_info" %output_dir, dom_sigma_info = save_Dom_sigma, save_Barr_pos = save_Barr_pos, mean_sig_wholeGenome = save_mean_sig_wholeGenome, Dom_size = save_Dom_size)
+    np.savez("%s/all_res/save_RNAPs_info" %output_path, RNAPs_info = save_RNAPs_info)
+    np.savez("%s/all_res/save_tr_info" %output_path, tr_info = save_tr_info)
+    np.savez("%s/all_res/save_sigma_info" %output_path, dom_sigma_info = save_Dom_sigma, save_Barr_pos = save_Barr_pos, mean_sig_wholeGenome = save_mean_sig_wholeGenome, Dom_size = save_Dom_size)
 
 ###########################################################
 #         Transcription Process (Simulation)              #
 ###########################################################
 
-def start_transcribing(INI_file, output_dir=None):
-    """ This is the start_transcribing docstring """
+def start_transcribing(INI_file, first_output_path=None, resume_output_path=None, resume=False):
+
+    """Example function with types documented in the docstring.
+
+    `PEP 484`_ type annotations are supported. If attribute, parameter, and
+    return types are annotated according to `PEP 484`_, they do not need to be
+    included in the docstring:
+
+    Args:
+        INI_file (str): The path to the parameter file.
+        first_output_path (str, optional): The path in which all the generated files (when) will be saved.
+        resume_output_path (str, optional): The path in which all the generated files (when resuming) will be saved.
+        resume (bool, optional): Whether this function is used to resume an already done simulation or not.
+
+    Returns:
+        GFF_file : Relative path to the GFF file
+        TSS_file : Relative path to the TSS file
+        TTS_file : Relative path to the TTS file
+        SIM_TIME : Simulation time
+        RNAPS_NB : Numbers of RNAPol
+        tr_nbr : Number of transcripts
+        tr_times : Transcription time
+        init_rate : Initiation rate
+        RNAPs_tr : Contains the id of the picked transcript
+        RNAPs_pos : The position of RNAPols 
+        RNAPs_unhooked_id : id of Unhoocked RNAPols
+        save_RNAPs_info : Contains the RNAPs_tr and RNAPs_pos
+        save_tr_info : Contains the tr_nbr and init_rate
+        save_Dom_sigma : Contains the SC density (sigma) value of each domaine
+        save_Barr_pos : Contains the barriers positions (whether Barr_fix or RNAPol)
+        cov_bp : Coverage
+        tr_end : The end (position) of transcripts
+
+    """
+
+    ###########################################################
+    #                 initiation of variables                 #
+    ###########################################################
 
     ####################### Params info ###################
+
     config = read_config_file(INI_file)
 
     # get inputs infos from the config file
@@ -300,20 +336,13 @@ def start_transcribing(INI_file, output_dir=None):
     #SIGMA_0 = 0 #((-np.log(((GYRASE_CONC*GYRASE_CTE)/TOPO_CONC*TOPO_CTE)-1))/k)+x_0
     
     # path to the input files (remove the "params.ini" from the path)
-    pth = INI_file.rpartition("/")[0] + "/"
-    if pth=="/":
-        pth="./"
+    pth = INI_file.rpartition("/")[0] #+ "/"
+    # or you can use : pth = os.path.split(INI_file)[0] + "/"
+    #if pth=="/":
+        #pth="./"
     if pth=="":
         pth="."
     pth+="/"
-
-    if output_dir==None:
-        output_dir=pth
-
-    try:
-        copy(INI_file, output_dir)
-    except:
-        print("Input file was not copied")
 
     gff_df_raw = load_gff(pth+GFF_file)
     tss = load_tab_file(pth+TSS_file)
@@ -338,9 +367,6 @@ def start_transcribing(INI_file, output_dir=None):
 
     # The RNAPs id
     RNAPs_id = np.full(RNAPS_NB, range(0, RNAPS_NB), dtype=int)
-
-    # The position of RNAPs
-    RNAPs_pos = np.full(RNAPS_NB, NaN) 
 
     # RNAPs_last_pos
     RNAPs_last_pos = np.full(RNAPS_NB, NaN)
@@ -369,44 +395,125 @@ def start_transcribing(INI_file, output_dir=None):
 
     ts_remain_all = np.array(ts_remain_all)/DELTA_X
     ts_remain_all = ts_remain_all.astype(int64)
-    
-    # The number of times transcripts has been transcribed
-    tr_nbr = np.zeros(len(tr_id), dtype=int)
 
     genome = int(genome_size/DELTA_X)
 
-    # try to read the prot_file which contains the fixed barriers positions
-    try:
-        prot = load_tab_file(pth+Prot_file)
-        Barr_fix = (prot['prot_pos'].values/DELTA_X).astype(int)
-    
-        # just for the echo we can assign it directely
-        Barr_pos = np.copy(Barr_fix)
+    if resume == False:
+        # The position of RNAPs
+        RNAPs_pos = np.full(RNAPS_NB, NaN) 
+        
+        # The number of times transcripts has been transcribed
+        tr_nbr = np.zeros(len(tr_id), dtype=int)
 
-        # update in case where no fixed barriers !!!
-        # abs in case we have Barr_pos[i+1]>Barr_pos[i] e.g: [64 57]
-        Dom_size = np.abs(np.ediff1d(Barr_pos)) #, dtype=int
 
-        Dom_size = np.append(Dom_size, genome-(np.max(Barr_pos)-np.min(Barr_pos)))
+        # try to read the prot_file which contains the fixed barriers positions
+        try:
+            prot = load_tab_file(pth+Prot_file)
+            Barr_fix = (prot['prot_pos'].values/DELTA_X).astype(int)
+        
+            # just for the echo we can assign it directely
+            Barr_pos = np.copy(Barr_fix)
 
-        Barr_type = np.full(len(Barr_fix), 0, dtype=int)
-        Barr_sigma = np.full(len(Barr_fix), SIGMA_0)
+            # update in case where no fixed barriers !!!
+            # abs in case we have Barr_pos[i+1]>Barr_pos[i] e.g: [64 57]
+            Dom_size = np.abs(np.ediff1d(Barr_pos)) #, dtype=int
+
+            Dom_size = np.append(Dom_size, genome-(np.max(Barr_pos)-np.min(Barr_pos)))
+
+            Barr_type = np.full(len(Barr_fix), 0, dtype=int)
+            Barr_sigma = np.full(len(Barr_fix), SIGMA_0)
+            # here we need to make an Barr_ts_remain
+            # to track the position of each RNAPol
+            # each position in Barr_ts_remain is associated with the same position in Barr_pos
+            Barr_ts_remain = np.full(len(Barr_fix), NaN) # The Barr_ts_remain of fixed barr is NaN
+
+        # if prot_file is empty or doesn't exist then:
+        except (pd.io.common.EmptyDataError, OSError):
+            # we'll have one Dom_size which is the whole genome
+            # There is no Barr_fix
+            Dom_size = np.array([genome], dtype=int)
+            # create the other variables
+            Barr_type = np.array([], dtype=int)
+            Barr_sigma = np.array([SIGMA_0]) # on the whole genome 
+            Barr_pos = np.array([], dtype=int)
+            Barr_ts_remain = np.array([])
+
+
+        RNAPs_unhooked_id = np.copy(RNAPs_id)
+        RNAPs_strand = np.full(RNAPS_NB, NaN)
+        ts_beg = np.full(RNAPS_NB, NaN)
+        ts_remain = np.full(RNAPS_NB, NaN)
+        # RNAPs_tr will contain the id of the picked transcript
+        RNAPs_tr = np.full(RNAPS_NB, -1, dtype=(int64))
+        # get the TSSs ids
+        tss_id = tss.index.values
+
+        # in the case of RNAP_NBR = 0
+        RNAPs_hooked_id = []
+
+        # no resume ==> set the 'output_path' to 'first_output_path'
+        output_path = first_output_path
+        # 'output_path' variable is used to save the output files 
+        # in 'save_files()' function
+
+    else:
+        #RNAPs_info contains : ['RNAPs_unhooked_id', 'RNAPs_pos', 'RNAPs_tr']
+        RNAPs_info = np.load("%s/resume_sim/resume_sim_RNAPs.npz" %first_output_path)
+
+        # get the RNAPs position
+        RNAPs_pos = RNAPs_info['RNAPs_pos']
+
+        # The number of times transcripts has been transcribed
+        csv_path = "%s/save_tr_nbr.csv" %first_output_path
+        tr_nbr = get_tr_nbr_csv(csv_path)
+
+        # when we resume, we won't need info from 'prot' file because we already
+        # have all what we need in 'resume_sim_Barr.npz' file ;)
+
+        # Get info from NPZ file
+        Barr_info = np.load("%s/resume_sim/resume_sim_Barr.npz" %first_output_path)
+
+        # aaand here we go !
+        Barr_pos = Barr_info['Barr_pos']
+        Dom_size = Barr_info['Dom_size']
+
+        Barr_type = Barr_info['Barr_type']
+        Barr_sigma = Barr_info['Barr_sigma']
+
         # here we need to make an Barr_ts_remain
-        # to track the position of each RNAPol
+        # so we can track the position of each RNAPol
         # each position in Barr_ts_remain is associated with the same position in Barr_pos
-        Barr_ts_remain = np.full(len(Barr_fix), NaN) # The Barr_ts_remain of fixed barr is NaN
+        Barr_ts_remain = Barr_info['Barr_ts_remain']
 
-    # if prot_file is empty or doesn't exist then:
-    except (pd.io.common.EmptyDataError, OSError):
-        # we'll have one Dom_size which is the whole genome
-        # There is no Barr_fix
-        Dom_size = np.array([genome], dtype=int) # !!! genome here
-        # create the other variables
-        Barr_type = np.array([], dtype=int)
-        Barr_sigma = np.array([SIGMA_0]) # on the whole genome 
-        Barr_pos = np.array([], dtype=int)
-        Barr_ts_remain = np.array([])
-    
+        ## do the same for RNAPs_info 
+        # get the RNAPs_info
+        RNAPs_info = np.load("%s/resume_sim/resume_sim_RNAPs.npz" %first_output_path)
+
+        # get the RNAPs_hooked_id and RNAPs_pos
+        RNAPs_hooked_id = RNAPs_info["RNAPs_hooked_id"]
+        RNAPs_pos = RNAPs_info["RNAPs_pos"]
+        # deduce the RNAPs_hooked_pos from the extracted info ;)
+        #!!! check out this one (it's not used)
+        RNAPs_hooked_pos = RNAPs_pos[RNAPs_hooked_id].astype(int)
+
+        # since we continue the simulation, we shall retrieve the RNAPs_unhooked_id from the npz file
+        RNAPs_unhooked_id = RNAPs_info["RNAPs_unhooked_id"]
+
+        RNAPs_strand = RNAPs_info["RNAPs_strand"]
+        ts_beg = RNAPs_info["ts_beg"]
+        ts_remain = RNAPs_info["ts_remain"]
+        # RNAPs_tr contains the id of the picked transcript
+        RNAPs_tr = RNAPs_info["RNAPs_tr"]
+        # get the TSSs ids
+        tss_id = tss.index.values
+
+        # will do the same for RNAPs_hooked_id
+        RNAPs_hooked_id = RNAPs_info["RNAPs_hooked_id"]
+
+        # resume ==> set the 'output_path' to 'resume_output_path'
+        output_path = resume_output_path
+        # 'output_path' variable is used to save the output files 
+        # in 'save_files()' function
 
     ######### Variables used to get the coverage ##########
 
@@ -419,10 +526,6 @@ def start_transcribing(INI_file, output_dir=None):
 
     cov_bp = np.arange(0, genome_size, DELTA_X)
     cov_bp = np.resize(cov_bp, genome)
-
-    ###########################################################
-    #                 initiation of values                    #
-    ###########################################################
 
     # save the time when RNApoly is starting trasncribing a specific transcript
     tr_times = col.defaultdict(list)
@@ -445,25 +548,13 @@ def start_transcribing(INI_file, output_dir=None):
 
     ########### Go !
 
-    RNAPs_unhooked_id = np.copy(RNAPs_id)
-    RNAPs_strand = np.full(RNAPS_NB, NaN)
-    ts_beg = np.full(RNAPS_NB, NaN)
-    ts_remain = np.full(RNAPS_NB, NaN)
-    # RNAPs_tr will contain the id of the picked transcript
-    RNAPs_tr = np.full(RNAPS_NB, -1, dtype=(int64))
-    # get the TSSs ids
-    tss_id = tss.index.values
-
-    # in the case of RNAP_NBR = 0
-    RNAPs_hooked_id = []
-
     for t in range(0,int(SIM_TIME/DELTA_T)):
         # we need to know each TSS belong to which Domaine
         # if we have only one domaine (e.g no Barr_fix) then
         # all the TSS belong to the only domaine that exists (e.g TSS_pos_idx will be 0)
         TSS_pos_idx = np.searchsorted(Barr_pos, TSS_pos)
-        # after knowing the domaine of each TSS we can get sigma
 
+        # after knowing the domaine of each TSS we can get sigma
         try:
             sigma_tr_start = Barr_sigma[TSS_pos_idx-1]
         except IndexError:
@@ -476,6 +567,7 @@ def start_transcribing(INI_file, output_dir=None):
         # of RNAPol's binding to each TSS (e.g prob_init_rate)
         sum_init_rate = np.sum(init_rate)
         prob_init_rate = f_prob_init_rate(init_rate, sum_init_rate, DELTA_T)
+        
         if np.size(RNAPs_unhooked_id)!=0:
             # get the probability of RNAPol's stay unhooked
             prob_unhooked_rate = f_prob_unhooked_rate(sum_init_rate, DELTA_T, len(RNAPs_unhooked_id))
@@ -718,10 +810,38 @@ def start_transcribing(INI_file, output_dir=None):
     save_Dom_size = np.array(save_Dom_size)
     save_Barr_pos = np.array(save_Barr_pos)
     save_mean_sig_wholeGenome = np.array(save_mean_sig_wholeGenome)
-    save_files(output_dir, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Barr_pos, save_mean_sig_wholeGenome, save_Dom_size, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
+    
+    # before saving we check whether we're resuming or not
+    # in order to edit the output_path
 
-    # Copy the paramse to the output folder
-    #copy(INI_file, output_dir)
+    # if the output directory isn't specified and we're not resuming the simulation
+    if first_output_path==None and resume==False:
+        # create another directory inside 'pth' called 
+        # 'first_output' and save the results there
+        output_dir = "first_output"
+        # make sure that the output direcory exists, and create one if it doesn't
+        os.makedirs("%s/first_output" %pth, exist_ok=True)
+        # set the default output path
+        output_path=pth+"first_output"
+
+    # otherwise, if we're resuming the simulation
+    elif resume_output_path==None and resume==True:
+        # create another directory inside 'pth' called 
+        # 'resume_output' and save the results there
+        output_dir = "resume_output"
+        # make sure that the output direcory exists, and create one if it doesn't
+        os.makedirs("%s/resume_output" %pth, exist_ok=True)
+        # set the default output path
+        output_path=pth+"resume_output"
+
+    try:
+        # Copy the params to the output folder
+        copy(INI_file, output_path)
+    except Exception as e:
+        print("Input file was not copied")
+
+    save_files(output_path, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Barr_pos, save_mean_sig_wholeGenome, save_Dom_size, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
+
     print("Simulation completed successfully !! \nNumber of transcripts : \n")
     for i, v in enumerate(tr_nbr):
         print("Transcript{} : {}".format(i, v))
@@ -733,420 +853,24 @@ def start_transcribing(INI_file, output_dir=None):
             save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Barr_pos,
             cov_bp, tr_end)
 
-# This function for resuming the simulation by reading npz files
-def resume_transcription(INI_file, resume_path, output_dir):
 
-    ####################### Params info ###################
-    config = read_config_file(INI_file)
-
-    # get inputs infos from the config file
-    GFF_file = config.get('INPUTS', 'GFF')
-    TSS_file = config.get('INPUTS', 'TSS')
-    TTS_file = config.get('INPUTS', 'TTS')
-    Prot_file = config.get('INPUTS', 'BARR_FIX')
-
-    # get values from the config file
-    m = config.getfloat('GLOBAL', 'm')
-    sigma_t = config.getfloat('GLOBAL', 'sigma_t')
-    epsilon = config.getfloat('GLOBAL', 'epsilon')
-
-    RNAPs_genSC = config.getfloat('SIMULATION', 'RNAPs_genSC')
-    SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
-    DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
-    DELTA_T = config.getfloat('SIMULATION', 'DELTA_T')
-    RNAPS_NB = config.getint('SIMULATION', 'RNAPS_NB')
-    SIM_TIME = config.getfloat('SIMULATION', 'SIM_TIME')
-    OUTPUT_STEP = config.getfloat('SIMULATION', 'OUTPUT_STEP')
-
-    GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
-    TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
-    TOPO_CTE = config.getfloat('SIMULATION', 'TOPO_CTE')
-    GYRASE_CTE = config.getfloat('SIMULATION', 'GYRASE_CTE')
-    #TOPO_EFFICIENCY = config.getfloat('SIMULATION', 'TOPO_EFFICIENCY')
-    k_GYRASE = config.getfloat('SIMULATION', 'k_GYRASE')
-    x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
-    k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
-    x0_TOPO = config.getfloat('SIMULATION', 'x0_TOPO')
-    # Calculate SIGMA_0 based on Topoisomerases concentration.
-    #SIGMA_0 = 0 #((-np.log(((GYRASE_CONC*GYRASE_CTE)/TOPO_CONC*TOPO_CTE)-1))/k)+x_0
-
-    gff_df_raw = load_gff(GFF_file)
-    tss = load_tab_file(TSS_file)
-    tts = load_tab_file(TTS_file)
-    prot = load_tab_file(Prot_file)
-
-    # TSS_pos
-    TSS_pos = (tss['TSS_pos'].values/DELTA_X).astype(int)
-
-    # Kon
-    Kon = tss['TSS_strength'].values
-
-    # Poff
-    Poff = tts['TTS_proba_off'].values
-
-    # Genome size
-    genome_size = get_genome_size(gff_df_raw)
-    gff_df = rename_gff_cols(gff_df_raw)
-
-    # Dict of transciption units with the list of tts belonging to TU.
-    TU_tts = get_TU_tts(tss, tts) 
-
-    # The RNAPs id
-    RNAPs_id = np.full(RNAPS_NB, range(0, RNAPS_NB), dtype=int)
-
-
-    #RNAPs_info contains : ['RNAPs_unhooked_id', 'RNAPs_pos', 'RNAPs_tr']
-    RNAPs_info = np.load("%s/resume_sim/resume_sim_RNAPs.npz" %resume_path)
-
-    # get the RNAPs position
-    RNAPs_pos = RNAPs_info['RNAPs_pos']
-
-    # RNAPs_last_pos
-    RNAPs_last_pos = np.full(RNAPS_NB, NaN) 
-
-    # Strands orientation
-    strands = str2num(gff_df['strand'].values)
-
-    # list of all possible transcripts
-    tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all = get_tr_info(tss, tts, TU_tts, Kon, Poff)
-
-    # convert all variables to numpy array
-    tr_id = np.array(tr_id)
-    tr_strand = np.array(tr_strand)
-
-    tr_start = np.array(tr_start)/DELTA_X
-    tr_start = tr_start.astype(int64)
-
-    tr_end = np.array(tr_end)/DELTA_X
-    tr_end = tr_end.astype(int64)
-
-    tr_rate = np.array(tr_rate)
-
-    tr_size = np.array(tr_size)/DELTA_X
-    tr_size = tr_size.astype(int64)
-
-    ts_beg_all_trs = np.array(ts_beg_all_trs)
-
-    ts_remain_all = np.array(ts_remain_all)/DELTA_X
-    ts_remain_all = ts_remain_all.astype(int64)
-
-    # The number of times transcripts has been transcribed
-    csv_path = "%s/save_tr_nbr.csv" %resume_path
-    tr_nbr = get_tr_nbr_csv(csv_path)
-
-    genome = int(genome_size/DELTA_X)
-
-    Barr_fix = (prot['prot_pos'].values/DELTA_X).astype(int)
-
-    # Get info from NPZ file
-    Barr_info = np.load("%s/resume_sim/resume_sim_Barr.npz" %resume_path)
-
-    # aaand here we go !
-    Barr_pos = Barr_info['Barr_pos']
-    Dom_size = Barr_info['Dom_size']
-
-    Barr_type = Barr_info['Barr_type']
-    Barr_sigma = Barr_info['Barr_sigma']
-
-    # here we need to make an Barr_ts_remain
-    # so we can track the position of each RNAPol
-    # each position in Barr_ts_remain is associated with the same position in Barr_pos
-    Barr_ts_remain = Barr_info['Barr_ts_remain']
-
-    ## do the same for RNAPs_info 
-    # get the RNAPs_info
-    RNAPs_info = np.load("%s/resume_sim/resume_sim_RNAPs.npz" %resume_path)
-
-    # get the RNAPs_hooked_id and RNAPs_pos
-    RNAPs_hooked_id = RNAPs_info["RNAPs_hooked_id"]
-    RNAPs_pos = RNAPs_info["RNAPs_pos"]
-    # deduce the RNAPs_hooked_pos from the extracted info ;)
-    RNAPs_hooked_pos = RNAPs_pos[RNAPs_hooked_id].astype(int)
-
-    ######### Variables used to get the coverage ##########
-
-    id_shift_fwd = list(range(1, genome))
-    id_shift_fwd.append(0)
-    id_shift_fwd = np.array(id_shift_fwd)
-    id_shift_bwd = list(range(0, genome-1))
-    id_shift_bwd.insert(0, genome-1)
-    id_shift_bwd = np.array(id_shift_bwd)
-
-    cov_bp = np.arange(0, genome_size, DELTA_X)
-    cov_bp = np.resize(cov_bp, genome)
-
-    ###########################################################
-    #                 initiation of values                    #
-    ###########################################################
-
-    # save the time when RNApoly is starting trasncribing a specific transcript
-    tr_times = col.defaultdict(list)
-
-    # numpy array where will save all RNAPs info
-    save_RNAPs_info = np.full([RNAPS_NB, 2, int(SIM_TIME/DELTA_T)], np.nan) # nbr d'ele (cols)
-
-    # this array will contain the number of RNAPs hooked at each time step
-    # the length of the array is equivalent to the simulation length
-    save_nbr_RNAPs_hooked = np.full(int(SIM_TIME/DELTA_T), np.nan) 
-
-    # the same for transcripts info
-    save_tr_info = np.full([len(tr_id), 2, int(SIM_TIME/DELTA_T)], np.nan) 
-
-    # in those variables, we will save/append info in each time step to save them as --> all_res ;-)
-    save_Dom_sigma = list()
-    save_Dom_size = list()
-    save_mean_sig_wholeGenome = list()
-
-    ########### Go ! 
-
-    # since we continue the simulation, we shall retrieve the RNAPs_unhooked_id from the npz file
-    RNAPs_unhooked_id = RNAPs_info["RNAPs_unhooked_id"]
-
-    RNAPs_strand = RNAPs_info["RNAPs_strand"]
-    ts_beg = RNAPs_info["ts_beg"]
-    ts_remain = RNAPs_info["ts_remain"]
-    # RNAPs_tr contains the id of the picked transcript
-    RNAPs_tr = RNAPs_info["RNAPs_tr"]
-    # get the TSSs ids
-    tss_id = tss.index.values
-
-    # will do the same for RNAPs_hooked_id
-    RNAPs_hooked_id = RNAPs_info["RNAPs_hooked_id"]
-    
-    for t in range(0,int(SIM_TIME/DELTA_T)):
-        # we need to know each TSS belong to which Domaine
-        TSS_pos_idx = np.searchsorted(Barr_pos, TSS_pos)
-
-        # after knowing the domaine of each TSS we can get sigma
-        sigma_tr_start = Barr_sigma[TSS_pos_idx-1] 
-
-        # get the initiation rates
-        init_rate = f_init_rate(tr_rate, sigma_tr_start, sigma_t, epsilon, m)
-        sum_init_rate = np.sum(init_rate)
-        prob_init_rate = f_prob_init_rate(init_rate, sum_init_rate, DELTA_T)
-
-        if np.size(RNAPs_unhooked_id)!=0:
-            # get the unhooked rates
-            prob_unhooked_rate = f_prob_unhooked_rate(sum_init_rate, DELTA_T, len(RNAPs_unhooked_id))
-            # craete the numpy array
-            prob_unhooked_rate = np.full(len(RNAPs_unhooked_id), prob_unhooked_rate)
-            all_prob = np.concatenate([prob_init_rate, prob_unhooked_rate])
-
-            # create the numpy array that will contains [ nTSS , Unhooked RNAPS ]
-            tss_and_unhooked_RNAPs = np.concatenate([tss_id, np.full(len(RNAPs_unhooked_id), -1, dtype=int)])
-
-            # pick up
-            picked_tr = np.random.choice(tss_and_unhooked_RNAPs, len(RNAPs_unhooked_id), replace=False, p=all_prob) #RNAPs_unhooked_id
-
-            # This is the KEY !
-            picked_tr_hooked_id = picked_tr[np.where(picked_tr!=-1)[0]]
-            picked_tr_unhooked_id = picked_tr[np.where(picked_tr==-1)[0]]
-
-            #new_RNAPs_hooked_id = RNAPs_unhooked_id[np.where(picked_tr==picked_tr_hooked_id)] #RNAPs_unhooked_id[picked_tr_hooked_id] 
-            new_RNAPs_hooked_id = RNAPs_unhooked_id[np.where(picked_tr!=-1)[0]] #RNAPs_unhooked_id[picked_tr_hooked_id] 
-            RNAPs_tr[new_RNAPs_hooked_id] = picked_tr[picked_tr!=-1]
-
-            RNAPs_strand[new_RNAPs_hooked_id] = tr_strand[picked_tr[np.where(picked_tr!=-1)]]
-
-            # The new position of each polymerase
-            # if there is no RNAP already at this position
-            RNAPs_pos[new_RNAPs_hooked_id] = tr_start[picked_tr[np.where(picked_tr!=-1)]].astype(int)
-
-            # take the position and use them to get the index in which u will insert them in Barr_pos array
-            Barr_pos_RNAPs_idx = np.searchsorted(Barr_pos, RNAPs_pos[new_RNAPs_hooked_id])
-
-            #after getting the idx, we start inserting
-            Barr_pos = np.insert(Barr_pos, Barr_pos_RNAPs_idx, RNAPs_pos[new_RNAPs_hooked_id])
-            # abs in case we have Barr_pos[i+1]>Barr_pos[i] e.g: [64 57]
-            Dom_size = np.abs(np.ediff1d(Barr_pos))
-            Dom_size = np.append(Dom_size, genome-(np.max(Barr_pos)-np.min(Barr_pos)))
-            Barr_type = np.insert(Barr_type, Barr>pos_RNAPs_idx, RNAPs_strand[new_RNAPs_hooked_id])
-
-            # Now Sigma
-            Barr_sigma = np.insert(Barr_sigma, Barr_pos_RNAPs_idx, Barr_sigma[Barr_pos_RNAPs_idx-1])
-
-            # RNAPs_last_pos
-            RNAPs_last_pos[new_RNAPs_hooked_id] = tr_end[picked_tr]
-            ts_beg[new_RNAPs_hooked_id] = 0
-            ts_remain[new_RNAPs_hooked_id] = ts_remain_all[picked_tr]
-            Barr_ts_remain = np.insert(Barr_ts_remain, Barr_pos_RNAPs_idx, ts_remain[new_RNAPs_hooked_id])
-            RNAPs_hooked_id = np.where(RNAPs_tr!=-1)[0]
-
-        ts_beg[RNAPs_hooked_id] += 1
-        ts_remain[RNAPs_hooked_id] -= 1
-
-        # save the time when RNApoly is FINISHED trasncribing a specific transcript
-        for x in RNAPs_tr[np.where(ts_remain==0)] :
-            tr_times[x].append(t*DELTA_T) # + 0.5
-
-        tr_nbr[RNAPs_tr[np.where(ts_remain==0)]]+=1 
-
-        # look in the net : numpy where two conditions
-        Barr_ts_remain[np.where(Barr_type == -1)]-=1
-        Barr_ts_remain[np.where(Barr_type == 1)]-=1
-        # Get the index of RNAPs to remove
-        rm_RNAPs_idx = np.where(Barr_ts_remain == 0)[0]
-
-        # recover sigma value of the removed position
-        removed_sigma = Barr_sigma[rm_RNAPs_idx]
-        removed_dom_size = Dom_size[rm_RNAPs_idx]
-
-        # recover the old_dom_size : the size of the previous domaine before combination/merging
-        old_dom_size = Dom_size[rm_RNAPs_idx-1]
-        old_sigma = Barr_sigma[rm_RNAPs_idx-1]
-
-        # update Dom_size 
-        #Dom_size[rm_RNAPs_idx-1] += removed_dom_size 
-        # or
-        # abs in case we have Barr_pos[i+1]>Barr_pos[i] e.g: [64 57]
-        Dom_size = np.abs(np.ediff1d(Barr_pos))
-        Dom_size = np.append(Dom_size, genome-Barr_fix[-1]+Barr_fix[0])
-
-        # calc correct
-        Barr_sigma[rm_RNAPs_idx-1] = (old_dom_size*old_sigma+removed_dom_size*removed_sigma)/(old_dom_size+removed_dom_size)
-
-        # and reomve them
-        Barr_pos = np.delete(Barr_pos, rm_RNAPs_idx)
-        Barr_type = np.delete(Barr_type, rm_RNAPs_idx)
-        Barr_ts_remain = np.delete(Barr_ts_remain, rm_RNAPs_idx)
-        Barr_sigma = np.delete(Barr_sigma, rm_RNAPs_idx)
-        Dom_size = np.delete(Dom_size, rm_RNAPs_idx)
-
-        # update the RNAPs_tr array
-        RNAPs_tr[np.where(ts_remain==0)] = -1
-        # update the RNAPs_unhooked_id based on RNAPs_tr
-        RNAPs_unhooked_id = np.where(RNAPs_tr==-1)[0]
-
-        # reset the arrays
-        RNAPs_strand[RNAPs_unhooked_id] = NaN
-        RNAPs_pos[RNAPs_unhooked_id] = NaN
-        RNAPs_last_pos[RNAPs_unhooked_id] = NaN
-        ts_beg[RNAPs_unhooked_id] = NaN
-        ts_remain[RNAPs_unhooked_id] = NaN
-
-        Barr_pos[np.where(Barr_type == -1)]-=1
-        Barr_pos[np.where(Barr_type == 1)]+=1
-
-        # Update the position of polymerases still transcribing
-        RNAPs_pos[np.where(RNAPs_strand == 1)]+=1
-        RNAPs_pos[np.where(RNAPs_strand == -1)]-=1
-
-        # Update the Dom_size (+1 or -1)
-        # abs in case we have Barr_pos[i+1]>Barr_pos[i] e.g: [64 57]
-        Dom_size = np.abs(np.ediff1d(Barr_pos))
-        Dom_size = np.append(Dom_size, genome-(np.max(Barr_pos)-np.min(Barr_pos)))
-        
-        # UPDATE SIGMA
-        # R_plus_pos : the ids of RNA pol in the + strand
-        R_plus_pos = np.where(Barr_type == 1)[0].astype(int)
-        # R_minus_pos : the ids of RNA pol in the - strand
-        R_minus_pos = np.where(Barr_type == -1)[0].astype(int)
-
-        #### Extract all types of domaines (Those are ids of domaines)
-        # Barr_type_ahead to make the extraction circular ;)
-        Barr_type_ahead = np.roll(Barr_type, -1)
-        # O +
-        Barr_Dom_RPlus = np.where((Barr_type==0) & (Barr_type_ahead==1))
-        # O -
-        Barr_Dom_RMinus = np.where((Barr_type==0) & (Barr_type_ahead==-1))
-        # O O
-        Barr_Dom_Barr = np.where((Barr_type==0) & (Barr_type_ahead==0))
-        # + +
-        RPlus_Dom_RPlus = np.where((Barr_type==1) & (Barr_type_ahead==1))
-        # - -
-        RMinus_Dom_RMinus = np.where((Barr_type==-1) & (Barr_type_ahead==-1))
-        # + -
-        RPlus_Dom_RMinus = np.where((Barr_type==1) & (Barr_type_ahead==-1))
-        # - +
-        RMinus_Dom_RPlus = np.where((Barr_type==-1) & (Barr_type_ahead==+1))
-        # - O
-        RMinus_Dom_Barr = np.where((Barr_type==-1) & (Barr_type_ahead==0))
-        # + O
-        RPlus_Dom_Barr = np.where((Barr_type_ahead==0) & (Barr_type==+1))
-
-        #### And then correct the value of Sigma in each case (before/after)
-        corr_sig_Barr_Dom_RPlus = (Dom_size[Barr_Dom_RPlus]-1)/(Dom_size[Barr_Dom_RPlus]) # Sigma decrease x1
-        corr_sig_Barr_Dom_RMinus = (Dom_size[Barr_Dom_RMinus]+1)/(Dom_size[Barr_Dom_RMinus]) # Sigma increase x1
-        corr_sig_Barr_Dom_Barr = (Dom_size[Barr_Dom_Barr])/(Dom_size[Barr_Dom_Barr]) # Sigma FIX
-        corr_sig_RPlus_Dom_RPlus = (Dom_size[RPlus_Dom_RPlus])/(Dom_size[RPlus_Dom_RPlus]) # Sigma FIX
-        corr_sig_RMinus_Dom_RMinus = (Dom_size[RMinus_Dom_RMinus])/(Dom_size[RMinus_Dom_RMinus]) # Sigma FIX
-        corr_sig_RPlus_Dom_RMinus = (Dom_size[RPlus_Dom_RMinus]+2)/(Dom_size[RPlus_Dom_RMinus]) # Sigma increase x2
-        corr_sig_RMinus_Dom_RPlus = (Dom_size[RMinus_Dom_RPlus]-2)/(Dom_size[RMinus_Dom_RPlus]) # Sigma decrease x2
-        corr_sig_RMinus_Dom_Barr = (Dom_size[RMinus_Dom_Barr]-1)/(Dom_size[RMinus_Dom_Barr]) # Sigma decrease x1
-        corr_sig_RPlus_Dom_Barr = (Dom_size[RPlus_Dom_Barr]+1)/(Dom_size[RPlus_Dom_Barr]) # Sigma increase x1
-
-        ### Multiply Sigma *= Corr (Each sigma value correspond to an specific domaine)
-        Barr_sigma[Barr_Dom_RPlus] *= corr_sig_Barr_Dom_RPlus
-        Barr_sigma[Barr_Dom_RMinus] *= corr_sig_Barr_Dom_RMinus
-        Barr_sigma[Barr_Dom_Barr] *= corr_sig_Barr_Dom_Barr
-        Barr_sigma[RPlus_Dom_RPlus] *= corr_sig_RPlus_Dom_RPlus
-        Barr_sigma[RMinus_Dom_RMinus] *= corr_sig_RMinus_Dom_RMinus
-        Barr_sigma[RPlus_Dom_RMinus] *= corr_sig_RPlus_Dom_RMinus
-        Barr_sigma[RMinus_Dom_RPlus] *= corr_sig_RMinus_Dom_RPlus
-        Barr_sigma[RMinus_Dom_Barr] *= corr_sig_RMinus_Dom_Barr
-        Barr_sigma[RPlus_Dom_Barr] *= corr_sig_RPlus_Dom_Barr
-
-        ### Now we calculate the SC generated in each domaine
-        # RNAPs_genSC_all : contains an array of RNAPs_genSC 
-        # that should be added or substracted from each domaine
-        RNAPs_genSC_all = RNAPs_genSC/Dom_size
-
-        # Now update the value of sigma
-        Barr_sigma[Barr_Dom_RPlus] -= RNAPs_genSC_all[Barr_Dom_RPlus]
-        Barr_sigma[Barr_Dom_RMinus] += RNAPs_genSC_all[Barr_Dom_RMinus]
-        Barr_sigma[RPlus_Dom_RMinus] += 2*RNAPs_genSC_all[RPlus_Dom_RMinus]
-        Barr_sigma[RMinus_Dom_RPlus] -= 2*RNAPs_genSC_all[RMinus_Dom_RPlus]
-        Barr_sigma[RMinus_Dom_Barr] -= RNAPs_genSC_all[RMinus_Dom_Barr]
-        Barr_sigma[RPlus_Dom_Barr] += RNAPs_genSC_all[RPlus_Dom_Barr]
-        
-        # Now
-        Barr_sigma = calc_sigma(Barr_sigma, GYRASE_CONC, k_GYRASE, x0_GYRASE, GYRASE_CTE, TOPO_CONC, k_TOPO, x0_TOPO, TOPO_CTE, DELTA_T)
-        mean_sig_wholeGenome = np.sum(Barr_sigma*Dom_size)/genome
-        
-        # Update the initiation rate        
-        init_rate = f_init_rate(tr_rate, sigma_tr_start, sigma_t, epsilon, m)
-        
-        if t%OUTPUT_STEP == 0:
-            # save all informations to npz file    
-            # RNAPs_info
-            save_RNAPs_info[:, 0, t] = RNAPs_tr      
-            save_RNAPs_info[:, 1, t] = RNAPs_pos
-            # save the nbr_RNAPs_hooked
-            save_nbr_RNAPs_hooked[t] = np.size(RNAPs_hooked_id)
-            # tr_info
-            save_tr_info[:, 0, t] = tr_nbr
-            save_tr_info[:, 1, t] = init_rate
-
-        save_Dom_sigma.append(Barr_sigma)
-        save_Barr_pos.append(Barr_pos)
-        save_Dom_size.append(Dom_size)
-        save_mean_sig_wholeGenome.append(mean_sig_wholeGenome)
-
-    save_Dom_sigma = np.array(save_Dom_sigma)
-    save_Dom_size = np.array(save_Dom_size)
-    save_mean_sig_wholeGenome = np.array(save_mean_sig_wholeGenome)
-    save_files(output_dir, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Dom_sigma, save_mean_sig_wholeGenome, save_Dom_size, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
-
-    # Copy the params.ini file to the output folder
-    #copy(INI_file, output_dir)
-
-    print("Simulation completed successfully !! \nNumber of transcripts : \n")
-    for i, v in enumerate(tr_nbr):
-        print("Transcript{} : {}".format(i, v))
-
-    return (GFF_file, TSS_file, TTS_file,
-            SIM_TIME, RNAPS_NB,
-            tr_nbr, tr_times, init_rate, 
-            RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id,
-            save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Dom_size,
-            cov_bp, tr_end)
-
-
-if __name__ == '__main__':    
-    INI_file=sys.argv[1]
+if __name__ == '__main__':
     try:
-        output_dir=sys.argv[2]
-        start_transcribing(INI_file, output_dir)
-    except:
+        INI_file=sys.argv[1]           # e.g "../analysis_scripts/example/params.ini"
+        # First simulation
         start_transcribing(INI_file)
-   
+        # or you can specify the output path
+        #start_transcribing(INI_file, output_path)
+
+        # Resuming
+        # uncomment this two lines if you want to resume the simulation
+        # 'first_output_path' means the path from which the script will get the npz files 
+        #first_output_path=sys.argv[2]        # e.g "../analysis_scripts/example/first_output"
+        #start_transcribing(INI_file, first_output_path, resume=True)
+    except configparser.NoSectionError:
+        print("Error ! Please check the path to the paraneters files !")
+    except PermissionError:
+        print("Permission denied ! Please check the directory to the output files !")
+    except (FileNotFoundError, NameError):
+        print("Error ! Please check the directory to the output files !")
+        
