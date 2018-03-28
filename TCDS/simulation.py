@@ -428,7 +428,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
             Barr_ts_remain = np.full(len(Barr_fix), NaN) # The Barr_ts_remain of fixed barr is NaN
 
         # if prot_file is empty or doesn't exist then:
-        except (pd.io.common.EmptyDataError, OSError):
+        except (pd.io.common.EmptyDataError, OSError, ValueError):
             # we'll have one Dom_size which is the whole genome
             # There is no Barr_fix
             Dom_size = np.array([genome], dtype=int)
