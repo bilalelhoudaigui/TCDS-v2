@@ -134,9 +134,10 @@ def plot_genome(ax_dna, INI_file):
     
     ax_dna.plot([cov_bp[0],cov_bp[-1]], [0,0], color=(0,0,0), linewidth=1.0, zorder=1)
     ax_dna.axis('off')
-
     return SIGMA_0, DELTA_X, BARR_FIX, cov_bp
 
+
+# 
 
 def compute_superc_distrib(Barr_pos, SC, cov_bp):
     """
@@ -171,7 +172,7 @@ def plot_superc_distrib(ax, Barr_pos, SC, cov_bp, DELTA_X, Barr_fix):
 def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None):
     """
     Plots a genome into an output figure file. Optionally, make a second plot with one or several signals along the genome and/or RNAP positions. 
-    - the signals must have the same size as the genome in reduced units. They are a list of tuples (label, array of values)
+    - the signals must have the same size as the genome in reduced units. They are a list of tuples (label, array of values) of genome size OR tuple (label, value, Barr_pos) to draw the distribution at given timepoint from simul output
     - the RNAPs are shown as red circles. it is an array of positions
     """
     # Create the figure and all axes to draw to
@@ -224,7 +225,40 @@ def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None):
         plt.savefig(outfile+ext)
 
 
-    
+
+
+# --------------
+# additional functions to write
+# - make figures and/or movie for given directory ?
+# - compute topoisomerase activities ?
+
+def get_SCprofile_from_dir(output_dir,compute_topoisomerase=False,timepoints=None):
+    """
+    Provides a list with successive tuples of Barr_fix,SC_profile that can be used to draw the distribution. 
+    - if compute_topoisomerase, then also lists for those
+    - timepoints is an array of indexes, from 0 to the maximal timeindex
+    """
+    sigma_info = np.load(output_dir+"/all_res/save_sigma_info.npz")
+    RNAPs_info = np.load(output_dir+"/all_res/save_RNAPs_info.npz")
+    Barr_pos = sigma_info["save_Barr_pos"]
+    dom_sigma_info = sigma_info["dom_sigma_info"]
+    # select timepoints
+    if timepoints=None:
+        timepoints=np.arange(length(dom_sigma_info))
+    sigma=dom_sigma_info[timepoints]
+    barr=Barr_pos[timepoints]
+    RNAPs_pos_info = RNAPs_info["RNAPs_info"][:, 1, timepoints]
+    # compute topoisomerases?
+    if compute_topoisomerase:
+        k_GYRASE = 50
+        x0_GYRASE = 0.016
+        k_TOPO = 80
+        x0_TOPO = -0.04
+            
+
+
+
+
 
 # Plot the supercoiling density before and after adding Gyrase (Chong experiment)
 def plot_topoI_gyrase_sigma(output_dir_pre, output_dir_post):
