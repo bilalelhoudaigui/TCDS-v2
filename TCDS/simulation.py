@@ -574,12 +574,13 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
             # craete the numpy array
             prob_unhooked_rate = np.full(len(RNAPs_unhooked_id), prob_unhooked_rate)
             all_prob = np.concatenate([prob_init_rate, prob_unhooked_rate])
-
             # create the numpy array that will contains [ nTSS , Unhooked RNAPS ]
+            # e.g if we have 2 TSSs and 3 unhooked RNAPols then
+            # tss_and_unhooked_RNAPs = [0, 1, -1, -1, -1]
             tss_and_unhooked_RNAPs = np.concatenate([tss_id, np.full(len(RNAPs_unhooked_id), -1, dtype=int)])
-
-            # pick up a random RNAPol
+            # pick up a random transcipt
             picked_tr = np.random.choice(tss_and_unhooked_RNAPs, len(RNAPs_unhooked_id), replace=False, p=all_prob) #RNAPs_unhooked_id
+            
             # This is the KEY !
             picked_tr_hooked_id = picked_tr[np.where(picked_tr!=-1)[0]]
             picked_tr_unhooked_id = picked_tr[np.where(picked_tr==-1)[0]]
@@ -592,6 +593,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
             # The new position of each polymerase
             # if there is no RNAP already at this position
             RNAPs_pos[new_RNAPs_hooked_id] = tr_start[picked_tr[np.where(picked_tr!=-1)]].astype(int)
+
 
             # take the position and use them to get the index in which u will insert them in Barr_pos array
             Barr_pos_RNAPs_idx = np.searchsorted(Barr_pos, RNAPs_pos[new_RNAPs_hooked_id])
@@ -615,7 +617,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
                         # remove Barr_sigma=([SIGMA_0]) which still there
                         Barr_sigma = np.delete(Barr_sigma, -1)
             # in case we have one or zero barrier
-            except Exception as e:
+            except Exception:
                 # in case we have less than 2 Barriers
                 Dom_size = np.array([genome])
                 Barr_sigma = np.array([SIGMA_0])
@@ -623,9 +625,9 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
             Barr_type = np.insert(Barr_type, Barr_pos_RNAPs_idx, RNAPs_strand[new_RNAPs_hooked_id])
 
             # RNAPs_last_pos
-            RNAPs_last_pos[new_RNAPs_hooked_id] = tr_end[picked_tr]
+            RNAPs_last_pos[new_RNAPs_hooked_id] = tr_end[picked_tr_hooked_id]
             ts_beg[new_RNAPs_hooked_id] = 0
-            ts_remain[new_RNAPs_hooked_id] = ts_remain_all[picked_tr]
+            ts_remain[new_RNAPs_hooked_id] = ts_remain_all[picked_tr_hooked_id] # NOT picked_tr
             Barr_ts_remain = np.insert(Barr_ts_remain, Barr_pos_RNAPs_idx, ts_remain[new_RNAPs_hooked_id])
             RNAPs_hooked_id = np.where(RNAPs_tr!=-1)[0]
 
@@ -839,6 +841,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         copy(INI_file, output_path)
     except Exception as e:
         print("Input file was not copied")
+
 
     save_files(output_path, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Barr_pos, save_mean_sig_wholeGenome, save_Dom_size, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
 
