@@ -9,6 +9,7 @@ import matplotlib.colors as cm
 import matplotlib.patches as pat
 import math
 import matplotlib.font_manager as font_manager
+from scipy.optimize import fsolve
 plt.rcParams.update({'pdf.fonttype': 42})
 plt.rcParams.update({'ps.fonttype': 42})
 plt.rcParams.update({'font.size': 11})
@@ -19,11 +20,35 @@ plt.rcParams.update({'font.family': "Arial"})
 global exts
 exts=[".pdf",".svg",".png"]
 
+
+
 ###################### Plotting #######################
+
+
+
+
+def get_cov_bp(INI_file):
+    path = INI_file.rpartition("/")[0]
+    if path=="":
+        path="."
+    path+="/"
+    # read the config file
+    config = sim.read_config_file(INI_file)
+    # get inputs infos from the config file
+    GFF_file = path+config.get('INPUTS', 'GFF')
+    DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
+    # To draw the beautiful genes we need to read the GFF, TSS and TTS files to get some info ;)
+    gff_df_raw = sim.load_gff(GFF_file)
+    # to get the cov_bp (a verifier)
+    genome_size = sim.get_genome_size(gff_df_raw)
+    genome = int(genome_size/DELTA_X)
+    cov_bp = np.arange(0, genome_size, DELTA_X)
+    cov_bp = np.resize(cov_bp, genome)
+    return cov_bp
 
 def plot_genome(ax_dna, INI_file):
     """
-    Function that plots a genome from an INI file and puts it into a subplot
+    General Function that plots a genome from an INI file and puts it into a subplot
     """
     
     # path to the input files (remove the "params.ini" from the path)
@@ -137,10 +162,15 @@ def plot_genome(ax_dna, INI_file):
     return SIGMA_0, DELTA_X, BARR_FIX, cov_bp
 
 
-# 
+
+
+# --------------------------------
+# Plotting functions for one timepoint, one genome
+
 
 def compute_superc_distrib(Barr_pos, SC, cov_bp):
     """
+    Utility function
     Computes the array of SC from Barrier positions and SC values, and arange of genome length
     """
     n=len(cov_bp)
@@ -151,9 +181,11 @@ def compute_superc_distrib(Barr_pos, SC, cov_bp):
         sizes=[Barr_pos[0]]+list(Barr_pos[1:]-Barr_pos[:(-1)])+[n-Barr_pos[-1]]
         SC=[SC[-1]]+list(SC)
         return np.repeat(SC, sizes)
+
     
 def plot_superc_distrib(ax, Barr_pos, SC, cov_bp, DELTA_X, Barr_fix):
     """
+    Utility function
     Computes the array of SC from Barrier positions and SC values, and arange of genome length
     """
     n=len(cov_bp)
@@ -227,15 +259,14 @@ def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None):
 
 
 
+        
 # --------------
-# additional functions to write
-# - make figures and/or movie for given directory ?
-# - compute topoisomerase activities ?
+# Analysis functions that generate tables of SC and/or k_on values from output dir
 
-def get_SCprofile_from_dir(output_dir,compute_topoisomerase=False,timepoints=None):
+def get_SCprofiles_from_dir(output_dir,compute_topoisomerase=False,timepoints=None):
     """
     Provides a list with successive tuples of Barr_fix,SC_profile that can be used to draw the distribution. 
-    - if compute_topoisomerase, then also lists for those
+    - if compute_topoisomerase, then also lists for those: then the argument must be the input file: params.ini
     - timepoints is an array of indexes, from 0 to the maximal timeindex
     """
     sigma_info = np.load(output_dir+"/all_res/save_sigma_info.npz")
@@ -243,23 +274,67 @@ def get_SCprofile_from_dir(output_dir,compute_topoisomerase=False,timepoints=Non
     Barr_pos = sigma_info["save_Barr_pos"]
     dom_sigma_info = sigma_info["dom_sigma_info"]
     # select timepoints
-    if timepoints=None:
+    if timepoints is None:
         timepoints=np.arange(length(dom_sigma_info))
-    sigma=dom_sigma_info[timepoints]
-    barr=Barr_pos[timepoints]
-    RNAPs_pos_info = RNAPs_info["RNAPs_info"][:, 1, timepoints]
+        sigma=dom_sigma_info
+        barr=Barr_pos
+        RNAPs_pos_info = RNAPs_info["RNAPs_info"][:, 1, :]
+    else:
+        sigma=dom_sigma_info[timepoints]
+        barr=Barr_pos[timepoints]
+        RNAPs_pos_info = RNAPs_info["RNAPs_info"][:, 1, timepoints]    
     # compute topoisomerases?
-    if compute_topoisomerase:
-        k_GYRASE = 50
-        x0_GYRASE = 0.016
-        k_TOPO = 80
-        x0_TOPO = -0.04
-            
+    if not compute_topoisomerase:
+        return [(barr[i],s) for i,s in enumerate(sigma)]
+    else:
+        inf=compute_topoisomerase
+        config = sim.read_config_file(inf)
+        # get promoter values from the config file
+        m = config.getfloat('GLOBAL', 'm')
+        sigma_t = config.getfloat('GLOBAL', 'sigma_t')
+        epsilon = config.getfloat('GLOBAL', 'epsilon')
+        # get topoisomerase constants
+        GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
+        TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
+        TOPO_CTE = config.getfloat('SIMULATION', 'TOPO_CTE')
+        GYRASE_CTE = config.getfloat('SIMULATION', 'GYRASE_CTE')
+        # topoisomerase behavior
+        k_GYRASE = config.getfloat('SIMULATION', 'k_GYRASE')
+        x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
+        k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
+        x0_TOPO = config.getfloat('SIMULATION', 'x0_TOPO')
+        # compute topo activity in 
+        gyr_act=[GYRASE_CONC*1/(1+np.exp(-k_GYRASE*(s-x0_GYRASE)))*GYRASE_CTE for s in sigma]
+        topo_act=[TOPO_CONC*1/(1+np.exp(k_TOPO*(s-x0_TOPO)))*TOPO_CTE for s in sigma]
+        return [(barr[i],s) for i,s in enumerate(sigma)], gyr_act, topo_act
+
+
+def get_SC_array(init_file, output_dir,compute_topoisomerase=False,timepoints=None):
+    # same as last function except that output is a Numpy array with values at each position rather than a list of domains
+    # this is helpful if you want to draw the distribution of SC or topo activity along the genome
+    """
+    Input: 
+    - init file for genome descr
+    - output dir for output
+    - also topo activity: BOOLEAN
+    - array of timepoints (default None)
+    Output: 
+    NumPy arrays of (genome size * time)
+    """
+    cov_bp=get_cov_bp(init_file)
+    if not compute_topoisomerase:
+        bs=get_SCprofiles_from_dir(output_dir,compute_topoisomerase,timepoints)
+        return np.array([compute_superc_distrib(bsi[0], bsi[1], cov_bp) for bsi in bs])
+    else:
+        bs,gy,to=get_SCprofiles_from_dir(output_dir,compute_topoisomerase,timepoints)
+        sc=np.array([compute_superc_distrib(bsi[0], bsi[1], cov_bp) for bsi in bs])
+        gyr=np.array([compute_superc_distrib(bs[i][0], g, cov_bp) for i,g in enumerate(gy)])
+        topo=np.array([compute_superc_distrib(bs[i][0], t, cov_bp) for i,t in enumerate(to)])
+        return sc,gyr,topo
 
 
 
-
-
+"""
 # Plot the supercoiling density before and after adding Gyrase (Chong experiment)
 def plot_topoI_gyrase_sigma(output_dir_pre, output_dir_post):
 
@@ -307,3 +382,64 @@ def plot_topoI_gyrase_kon(output_dir_pre, output_dir_post):
     plt.ylabel("Initiation rate")
     fig.tight_layout()
     plt.show()
+"""
+
+
+
+
+
+
+
+
+def SC_numerical_solution(GYRASE_CONC,TOPO_CONC,GYRASE_CTE=0.01,TOPO_CTE=0.005,k_GYRASE=50,k_TOPO=80,x0_GYRASE=.016,x0_TOPO=-.04):
+    """
+    Computes the equilibrium SC value from topoisomerase concentrations
+    """
+    func = lambda sig0 : -GYRASE_CONC*1/(1+np.exp(-k_GYRASE*(sig0-x0_GYRASE)))*GYRASE_CTE + TOPO_CONC*1/(1+np.exp(k_TOPO*(sig0-x0_TOPO)))*TOPO_CTE
+    sig0_initial_guess = -0.03
+    sig0 = fsolve(func, sig0_initial_guess)[0]
+    return sig0
+
+
+def plot_promoter_response_and_SCvalues(INI_file,outfile=None):
+    """
+    For given simulation, plot the promoter response curve together with initiatil and equilibrium SC values
+    """
+    if outfile is None:
+        outfile=INI_file.split(".")[0]+"_promoter"
+    config = sim.read_config_file(INI_file)
+    # get promoter values from the config file
+    m = config.getfloat('GLOBAL', 'm')
+    sigma_t = config.getfloat('GLOBAL', 'sigma_t')
+    epsilon = config.getfloat('GLOBAL', 'epsilon')
+    # get topoisomerase constants
+    GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
+    TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
+    TOPO_CTE = config.getfloat('SIMULATION', 'TOPO_CTE')
+    GYRASE_CTE = config.getfloat('SIMULATION', 'GYRASE_CTE')
+    # topoisomerase behavior
+    k_GYRASE = config.getfloat('SIMULATION', 'k_GYRASE')
+    x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
+    k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
+    x0_TOPO = config.getfloat('SIMULATION', 'x0_TOPO')
+    # sigma0,sigma_eq
+    sigma_eq=SC_numerical_solution(GYRASE_CONC,TOPO_CONC,GYRASE_CTE,TOPO_CTE,k_GYRASE,k_TOPO,x0_GYRASE,x0_TOPO)
+    try:
+        SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
+    except:
+        SIGMA_0=sigma_eq
+    # -------------------------
+    prom = lambda sig: np.exp((1/(1+np.exp((sig-sigma_t)/epsilon)))*m)
+    #
+    fig = plt.figure(1, figsize=(4,3)) # 3.2,2.7
+    sigs=np.arange(-.12,.04,.005)
+    plt.plot(sigs,prom(sigs),color="black")
+    plt.axvline(SIGMA_0,color="gray",ls="--",lw=.5)
+    plt.axvline(sigma_eq,color="gray",lw=.5)
+    plt.xlabel("σ")
+    plt.ylabel("supercoiling activation factor")
+    plt.tight_layout()
+    for ext in exts:
+        plt.savefig(outfile+ext)
+
+    
