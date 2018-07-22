@@ -28,6 +28,9 @@ exts=[".pdf",".svg",".png"]
 
 
 def get_cov_bp(INI_file):
+    """
+    Analyzes initiation file to get the array of positions in reduced units, for plotting
+    """
     path = INI_file.rpartition("/")[0]
     if path=="":
         path="."
@@ -175,12 +178,20 @@ def compute_superc_distrib(Barr_pos, SC, cov_bp):
     """
     n=len(cov_bp)
     if len(Barr_pos)>1:
-        print(Barr_pos)
-        print(SC)
-        print(cov_bp)
+        #print(Barr_pos)
+        #print(SC)
+        #print(cov_bp)
         sizes=[Barr_pos[0]]+list(Barr_pos[1:]-Barr_pos[:(-1)])+[n-Barr_pos[-1]]
         SC=[SC[-1]]+list(SC)
+        #print(Barr_pos)
+        #print(sizes)
         return np.repeat(SC, sizes)
+    elif len(SC)==1:
+        return np.ones(n)*SC[0]
+    else:
+        print("problem: inconsistent barriers and SC values...")
+        print(SC,Barr_pos)
+        return 1
 
     
 def plot_superc_distrib(ax, Barr_pos, SC, cov_bp, DELTA_X, Barr_fix):
@@ -210,14 +221,14 @@ def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None):
     # Create the figure and all axes to draw to
 
     if signals==None:
-        fig = plt.figure(1, figsize=(7,1.5)) # 3.2,2.7
+        fig = plt.figure(figsize=(7,1.5)) # 3.2,2.7
         ax_dna=plt.subplot()
         SIGMA_0, DELTA_X, BARR_FIX, cov_bp=plot_genome(ax_dna, INI_file)
         if RNAPs!=None:
             ax_dna.plot(RNAPs*DELTA_X, np.full(len(RNAPs), 0.5, dtype=float), 'o', markersize=10, color="blue", zorder=100)
 
     else:
-        fig = plt.figure(1, figsize=(7,3)) # 3.2,2.7
+        fig = plt.figure(figsize=(7,3)) # 3.2,2.7
         gs = gridspec.GridSpec(2, 1, height_ratios=[1,1])
         
         ax_sig = plt.subplot(gs[1])
@@ -245,7 +256,7 @@ def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None):
             if RNAPs!=None:
                 ax_dna.plot(RNAPs*DELTA_X, np.full(len(RNAPs), 0, dtype=float), 'o', markersize=10, color="blue", zorder=100)
                 for x in RNAPs:
-                    print(x*DELTA_X)
+                    #print(x*DELTA_X)
                     ax_dna.axvline(x=x*DELTA_X,ymin=-1.5,ymax=0.5,color="blue",ls="--",lw=.8,zorder=110,clip_on=False)
                     #ax_dna.plot([x*DELTA_X,x*DELTA_X],[0.5,0],zorder=120)
                     # con=pat.ConnectionPatch(xyA=(x*DELTA_X, 0.5), xyB=(x*DELTA_X, 0.), coordsA="data", coordsB="data", axesA=ax_dna, axesB=ax_sig, color="red")
@@ -273,9 +284,10 @@ def get_SCprofiles_from_dir(output_dir,compute_topoisomerase=False,timepoints=No
     RNAPs_info = np.load(output_dir+"/all_res/save_RNAPs_info.npz")
     Barr_pos = sigma_info["save_Barr_pos"]
     dom_sigma_info = sigma_info["dom_sigma_info"]
+    #print(dom_sigma_info[96:110])
     # select timepoints
     if timepoints is None:
-        timepoints=np.arange(length(dom_sigma_info))
+        timepoints=np.arange(len(dom_sigma_info))
         sigma=dom_sigma_info
         barr=Barr_pos
         RNAPs_pos_info = RNAPs_info["RNAPs_info"][:, 1, :]
@@ -310,23 +322,26 @@ def get_SCprofiles_from_dir(output_dir,compute_topoisomerase=False,timepoints=No
 
 
 def get_SC_array(init_file, output_dir,compute_topoisomerase=False,timepoints=None):
-    # same as last function except that output is a Numpy array with values at each position rather than a list of domains
+    # same as last function except that output is a Numpy array with values at each position rather than a list of domain
     # this is helpful if you want to draw the distribution of SC or topo activity along the genome
     """
-    Input: 
-    - init file for genome descr
-    - output dir for output
-    - also topo activity: BOOLEAN
-    - array of timepoints (default None)
+    Analyzes an initiation file and associated output directory, and computes a NumPy array with values of SC at all positions and all timepoints (matrix of size timepoints x cov_bp). 
+    Arguments: 
+    - Initiation file for genome description
+    - Output dir for simulation data
+    Options:
+    - compute_topoisomerase = True: in addition to the SC matrix, computes the topoisomerase activities at all positions and timepoints (by taking the topoisomerase parameters from the initfile and applying them on the latter matrix). 
+    - timepoints (= NumPy array of timepoints): restrict on a subset of timepoints
     Output: 
-    NumPy arrays of (genome size * time)
+    NumPy array or tuple of NumPy arrays of size (genome size * time)
     """
     cov_bp=get_cov_bp(init_file)
     if not compute_topoisomerase:
         bs=get_SCprofiles_from_dir(output_dir,compute_topoisomerase,timepoints)
         return np.array([compute_superc_distrib(bsi[0], bsi[1], cov_bp) for bsi in bs])
     else:
-        bs,gy,to=get_SCprofiles_from_dir(output_dir,compute_topoisomerase,timepoints)
+        bs,gy,to=get_SCprofiles_from_dir(output_dir,compute_topoisomerase=init_file,timepoints=timepoints)
+        #print(gy)
         sc=np.array([compute_superc_distrib(bsi[0], bsi[1], cov_bp) for bsi in bs])
         gyr=np.array([compute_superc_distrib(bs[i][0], g, cov_bp) for i,g in enumerate(gy)])
         topo=np.array([compute_superc_distrib(bs[i][0], t, cov_bp) for i,t in enumerate(to)])
@@ -334,66 +349,9 @@ def get_SC_array(init_file, output_dir,compute_topoisomerase=False,timepoints=No
 
 
 
-"""
-# Plot the supercoiling density before and after adding Gyrase (Chong experiment)
-def plot_topoI_gyrase_sigma(output_dir_pre, output_dir_post):
-
-    # get the full path
-    output_dir_pre = output_dir_pre+"/all_res/save_sigma_info.npz"
-    output_dir_post = output_dir_post+"/all_res/save_sigma_info.npz"
-    
-    # get the files
-    sigma_info_pre = np.load(output_dir_pre)
-    sigma_info_post = np.load(output_dir_post)
-    mean_sig_WG_pre = sigma_info_pre["mean_sig_wholeGenome"]    
-    mean_sig_WG_post = sigma_info_post["mean_sig_wholeGenome"]
-    mean_sig_WG = np.concatenate([mean_sig_WG_pre, mean_sig_WG_post])
-
-    # plot the result
-    fig = plt.figure(1)
-    plt.plot(range(0, len(mean_sig_WG)*int(2), int(2)), mean_sig_WG)
-    plt.xlabel("Time (s)")
-    plt.ylabel("Mean of supercoiling density")
-    fig.tight_layout()
-    plt.show()
-
-
-# Plot the initiation rate before and after adding Gyrase (Chong experiment)
-def plot_topoI_gyrase_kon(output_dir_pre, output_dir_post):
-
-    # get the full path
-    output_dir_pre = output_dir_pre+"/all_res/save_tr_info.npz"
-    output_dir_post = output_dir_post+"/all_res/save_tr_info.npz"
-    
-    # get the files
-    tr_info_pre = np.load(output_dir_pre)
-    tr_info_post = np.load(output_dir_post)
-    # [0,1,:] : extract from the first 3D array (0 correspond to gene0) 
-    # the 2nd 2D array (1 correspond to the init_rate of the gene0)
-    # and all the value during the simulation (:)  
-    init_rate_pre = tr_info_pre["tr_info"][0,1,:]
-    init_rate_post = tr_info_post["tr_info"][0,1,:]
-    tr_info_all = np.concatenate([init_rate_pre, init_rate_post])
-
-    # plot the result
-    fig = plt.figure(1)
-    plt.plot(range(0, len(tr_info_all)*int(2), int(2)), tr_info_all)
-    plt.xlabel("Time (s)")
-    plt.ylabel("Initiation rate")
-    fig.tight_layout()
-    plt.show()
-"""
-
-
-
-
-
-
-
-
 def SC_numerical_solution(GYRASE_CONC,TOPO_CONC,GYRASE_CTE=0.01,TOPO_CTE=0.005,k_GYRASE=50,k_TOPO=80,x0_GYRASE=.016,x0_TOPO=-.04):
     """
-    Computes the equilibrium SC value from topoisomerase concentrations
+    Computes the equilibrium SC value from topoisomerase concentrations. 
     """
     func = lambda sig0 : -GYRASE_CONC*1/(1+np.exp(-k_GYRASE*(sig0-x0_GYRASE)))*GYRASE_CTE + TOPO_CONC*1/(1+np.exp(k_TOPO*(sig0-x0_TOPO)))*TOPO_CTE
     sig0_initial_guess = -0.03
@@ -431,15 +389,16 @@ def plot_promoter_response_and_SCvalues(INI_file,outfile=None):
     # -------------------------
     prom = lambda sig: np.exp((1/(1+np.exp((sig-sigma_t)/epsilon)))*m)
     #
-    fig = plt.figure(1, figsize=(4,3)) # 3.2,2.7
+    fig = plt.figure(figsize=(4,3)) # 3.2,2.7
     sigs=np.arange(-.12,.04,.005)
     plt.plot(sigs,prom(sigs),color="black")
-    plt.axvline(SIGMA_0,color="gray",ls="--",lw=.5)
-    plt.axvline(sigma_eq,color="gray",lw=.5)
+    plt.axvline(SIGMA_0,color="gray",ls="--",lw=.5,label="initial")
+    plt.axvline(sigma_eq,color="gray",lw=.5,label="equil")
     plt.xlabel("σ")
     plt.ylabel("supercoiling activation factor")
+    plt.legend()
     plt.tight_layout()
     for ext in exts:
         plt.savefig(outfile+ext)
-
+    plt.close()
     
