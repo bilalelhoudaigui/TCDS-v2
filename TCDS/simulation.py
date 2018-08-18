@@ -45,26 +45,26 @@ def read_config_file_v2(path):
     Prot_file = config.get('INPUTS', 'BARR_FIX')    
 
     # get values from the config file
-    m = config.getfloat('GLOBAL', 'm')
-    sigma_t = config.getfloat('GLOBAL', 'sigma_t')
-    epsilon = config.getfloat('GLOBAL', 'epsilon')
+    m = config.getfloat('PROMOTER', 'm')
+    sigma_t = config.getfloat('PROMOTER', 'sigma_t')
+    epsilon = config.getfloat('PROMOTER', 'epsilon')
 
     RNAPs_genSC = config.getfloat('SIMULATION', 'RNAPs_genSC')
-    DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
-    DELTA_T = config.getfloat('SIMULATION', 'DELTA_T')
+    DELTA_X = config.getfloat('GLOBAL', 'DELTA_X')
+    DELTA_T = config.getfloat('GLOBAL', 'DELTA_T')
     RNAPS_NB = config.getint('SIMULATION', 'RNAPS_NB')
     SIM_TIME = config.getfloat('SIMULATION', 'SIM_TIME')
     OUTPUT_STEP = config.getfloat('SIMULATION', 'OUTPUT_STEP')
 
     GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
     TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
-    TOPO_CTE = config.getfloat('SIMULATION', 'TOPO_CTE')
-    GYRASE_CTE = config.getfloat('SIMULATION', 'GYRASE_CTE')
+    TOPO_CTE = config.getfloat('TOPOISOMERASES', 'TOPO_CTE')
+    GYRASE_CTE = config.getfloat('TOPOISOMERASES', 'GYRASE_CTE')
     #TOPO_EFFICIENCY = config.getfloat('SIMULATION', 'TOPO_EFFICIENCY')
-    k_GYRASE = config.getfloat('SIMULATION', 'k_GYRASE')
-    x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
-    k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
-    x0_TOPO = config.getfloat('SIMULATION', 'x0_TOPO')
+    k_GYRASE = config.getfloat('TOPOISOMERASES', 'k_GYRASE')
+    x0_GYRASE = config.getfloat('TOPOISOMERASES', 'x0_GYRASE')
+    k_TOPO = config.getfloat('TOPOISOMERASES', 'k_TOPO')
+    x0_TOPO = config.getfloat('TOPOISOMERASES', 'x0_TOPO')
 
     # Calculate SIGMA_0 based on Topoisomerases concentration.
     try:
@@ -311,27 +311,27 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     Prot_file = config.get('INPUTS', 'BARR_FIX')    
 
     # get values from the config file
-    m = config.getfloat('GLOBAL', 'm')
-    sigma_t = config.getfloat('GLOBAL', 'sigma_t')
-    epsilon = config.getfloat('GLOBAL', 'epsilon')
+    m = config.getfloat('PROMOTER', 'm')
+    sigma_t = config.getfloat('PROMOTER', 'sigma_t')
+    epsilon = config.getfloat('PROMOTER', 'epsilon')
 
     RNAPs_genSC = config.getfloat('SIMULATION', 'RNAPs_genSC')
     SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
-    DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
-    DELTA_T = config.getfloat('SIMULATION', 'DELTA_T')
+    DELTA_X = config.getfloat('GLOBAL', 'DELTA_X')
+    DELTA_T = config.getfloat('GLOBAL', 'DELTA_T')
     RNAPS_NB = config.getint('SIMULATION', 'RNAPS_NB')
     SIM_TIME = config.getfloat('SIMULATION', 'SIM_TIME')
     OUTPUT_STEP = config.getfloat('SIMULATION', 'OUTPUT_STEP')
 
     GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
     TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
-    TOPO_CTE = config.getfloat('SIMULATION', 'TOPO_CTE')
-    GYRASE_CTE = config.getfloat('SIMULATION', 'GYRASE_CTE')
+    TOPO_CTE = config.getfloat('TOPOISOMERASES', 'TOPO_CTE')
+    GYRASE_CTE = config.getfloat('TOPOISOMERASES', 'GYRASE_CTE')
     #TOPO_EFFICIENCY = config.getfloat('SIMULATION', 'TOPO_EFFICIENCY')
-    k_GYRASE = config.getfloat('SIMULATION', 'k_GYRASE')
-    x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
-    k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
-    x0_TOPO = config.getfloat('SIMULATION', 'x0_TOPO')
+    k_GYRASE = config.getfloat('TOPOISOMERASES', 'k_GYRASE')
+    x0_GYRASE = config.getfloat('TOPOISOMERASES', 'x0_GYRASE')
+    k_TOPO = config.getfloat('TOPOISOMERASES', 'k_TOPO')
+    x0_TOPO = config.getfloat('TOPOISOMERASES', 'x0_TOPO')
     # Calculate SIGMA_0 based on Topoisomerases concentration.
     #SIGMA_0 = 0 #((-np.log(((GYRASE_CONC*GYRASE_CTE)/TOPO_CONC*TOPO_CTE)-1))/k)+x_0
     
@@ -565,6 +565,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         init_rate = f_init_rate(tr_rate, sigma_tr_start, sigma_t, epsilon, m)
         # use the calculated init_rate to get the probability
         # of RNAPol's binding to each TSS (e.g prob_init_rate)
+
         sum_init_rate = np.sum(init_rate)
         prob_init_rate = f_prob_init_rate(init_rate, sum_init_rate, DELTA_T)
         
@@ -579,8 +580,9 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
             # tss_and_unhooked_RNAPs = [0, 1, -1, -1, -1]
             tss_and_unhooked_RNAPs = np.concatenate([tss_id, np.full(len(RNAPs_unhooked_id), -1, dtype=int)])
             # pick up a random transcipt
-            picked_tr = np.random.choice(tss_and_unhooked_RNAPs, len(RNAPs_unhooked_id), replace=False, p=all_prob) #RNAPs_unhooked_id
-            
+            # TEMPORARY VERSION: sort the transcript indexes to get sorted hook positions. This must be corrected since the input transcripts are not necessarily sorted!
+            picked_tr = np.sort(np.random.choice(tss_and_unhooked_RNAPs, len(RNAPs_unhooked_id), replace=False, p=all_prob)) #RNAPs_unhooked_id
+                        
             # This is the KEY !
             picked_tr_hooked_id = picked_tr[np.where(picked_tr!=-1)[0]]
             picked_tr_unhooked_id = picked_tr[np.where(picked_tr==-1)[0]]
@@ -593,12 +595,13 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
             # The new position of each polymerase
             # if there is no RNAP already at this position
             RNAPs_pos[new_RNAPs_hooked_id] = tr_start[picked_tr[np.where(picked_tr!=-1)]].astype(int)
-
-
+            
             # take the position and use them to get the index in which u will insert them in Barr_pos array
             Barr_pos_RNAPs_idx = np.searchsorted(Barr_pos, RNAPs_pos[new_RNAPs_hooked_id])
             #after getting the idx, we start inserting
             Barr_pos = np.insert(Barr_pos, Barr_pos_RNAPs_idx, RNAPs_pos[new_RNAPs_hooked_id])
+            
+            
             # if we have at least two barrier
             try:
                 # abs in case we have Barr_pos[i+1]>Barr_pos[i] e.g: [64 57]

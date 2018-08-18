@@ -39,7 +39,7 @@ def get_cov_bp(INI_file):
     config = sim.read_config_file(INI_file)
     # get inputs infos from the config file
     GFF_file = path+config.get('INPUTS', 'GFF')
-    DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
+    DELTA_X = config.getfloat('GLOBAL', 'DELTA_X')
     # To draw the beautiful genes we need to read the GFF, TSS and TTS files to get some info ;)
     gff_df_raw = sim.load_gff(GFF_file)
     # to get the cov_bp (a verifier)
@@ -68,7 +68,7 @@ def plot_genome(ax_dna, INI_file):
     Prot_file = path+config.get('INPUTS', 'BARR_FIX')
 
     SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
-    DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
+    DELTA_X = config.getfloat('GLOBAL', 'DELTA_X')
 
     # load and get BARR_FIX positions
     prot = sim.load_tab_file(Prot_file)
@@ -176,6 +176,8 @@ def compute_superc_distrib(Barr_pos, SC, cov_bp):
     Utility function
     Computes the array of SC from Barrier positions and SC values, and arange of genome length
     """
+    #print(Barr_pos)
+    #print(SC)
     n=len(cov_bp)
     if len(Barr_pos)>1:
         #print(Barr_pos)
@@ -305,16 +307,16 @@ def get_SCprofiles_from_dir(output_dir,compute_topoisomerase=False,timepoints=No
         m = config.getfloat('GLOBAL', 'm')
         sigma_t = config.getfloat('GLOBAL', 'sigma_t')
         epsilon = config.getfloat('GLOBAL', 'epsilon')
-        # get topoisomerase constants
+        # get topoisomerase concentrations
         GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
         TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
-        TOPO_CTE = config.getfloat('SIMULATION', 'TOPO_CTE')
-        GYRASE_CTE = config.getfloat('SIMULATION', 'GYRASE_CTE')
         # topoisomerase behavior
-        k_GYRASE = config.getfloat('SIMULATION', 'k_GYRASE')
-        x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
-        k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
-        x0_TOPO = config.getfloat('SIMULATION', 'x0_TOPO')
+        TOPO_CTE = config.getfloat('TOPOISOMERASES', 'TOPO_CTE')
+        GYRASE_CTE = config.getfloat('TOPOISOMERASES', 'GYRASE_CTE')
+        k_GYRASE = config.getfloat('TOPOISOMERASES', 'k_GYRASE')
+        x0_GYRASE = config.getfloat('TOPOISOMERASES', 'x0_GYRASE')
+        k_TOPO = config.getfloat('TOPOISOMERASES', 'k_TOPO')
+        x0_TOPO = config.getfloat('TOPOISOMERASES', 'x0_TOPO')
         # compute topo activity in 
         gyr_act=[GYRASE_CONC*1/(1+np.exp(-k_GYRASE*(s-x0_GYRASE)))*GYRASE_CTE for s in sigma]
         topo_act=[TOPO_CONC*1/(1+np.exp(k_TOPO*(s-x0_TOPO)))*TOPO_CTE for s in sigma]
@@ -373,13 +375,13 @@ def plot_promoter_response_and_SCvalues(INI_file,outfile=None):
     # get topoisomerase constants
     GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
     TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
-    TOPO_CTE = config.getfloat('SIMULATION', 'TOPO_CTE')
-    GYRASE_CTE = config.getfloat('SIMULATION', 'GYRASE_CTE')
+    TOPO_CTE = config.getfloat('TOPOISOMERASES', 'TOPO_CTE')
+    GYRASE_CTE = config.getfloat('TOPOISOMERASES', 'GYRASE_CTE')
     # topoisomerase behavior
-    k_GYRASE = config.getfloat('SIMULATION', 'k_GYRASE')
-    x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
-    k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
-    x0_TOPO = config.getfloat('SIMULATION', 'x0_TOPO')
+    k_GYRASE = config.getfloat('TOPOISOMERASES', 'k_GYRASE')
+    x0_GYRASE = config.getfloat('TOPOISOMERASES', 'x0_GYRASE')
+    k_TOPO = config.getfloat('TOPOISOMERASES', 'k_TOPO')
+    x0_TOPO = config.getfloat('TOPOISOMERASES', 'x0_TOPO')
     # sigma0,sigma_eq
     sigma_eq=SC_numerical_solution(GYRASE_CONC,TOPO_CONC,GYRASE_CTE,TOPO_CTE,k_GYRASE,k_TOPO,x0_GYRASE,x0_TOPO)
     try:
