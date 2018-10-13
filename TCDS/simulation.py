@@ -325,7 +325,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
 
     DELTA_X = config.getfloat('GLOBAL', 'DELTA_X')
     DELTA_T = config.getfloat('GLOBAL', 'DELTA_T')
-    
+
     RNAPs_genSC = config.getfloat('SIMULATION', 'RNAPs_genSC')
     SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
     RNAPS_NB = config.getint('SIMULATION', 'RNAPS_NB')
@@ -333,7 +333,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     OUTPUT_STEP = config.getfloat('SIMULATION', 'OUTPUT_STEP')
     GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
     TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
-    
+
     TOPO_CTE = config.getfloat('TOPOISOMERASES', 'TOPO_CTE')
     GYRASE_CTE = config.getfloat('TOPOISOMERASES', 'GYRASE_CTE')
     k_GYRASE = config.getfloat('TOPOISOMERASES', 'k_GYRASE')
@@ -350,7 +350,8 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         #pth="./"
     if pth=="":
         pth="."
-    pth+="/"
+    if pth[-1]!="/":
+        pth+="/"
 
     gff_df_raw = load_gff(pth+GFF_file)
     tss = load_tab_file(pth+TSS_file)
@@ -552,11 +553,18 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     # the same for transcripts info
     save_tr_info = np.full([len(tr_id), 2, int(SIM_TIME/DELTA_T)], np.nan)
 
+    # # in those variables, we will save/append info in each time step to save them as --> all_res ;-)
+    save_Dom_sigma = list()
+
+
+
+
     # in those variables, we will save/append info in each time step to save them as --> all_res ;-)
     save_Dom_sigma = list()
     save_Dom_size = list()
     save_Barr_pos = list()
     save_mean_sig_wholeGenome = list()
+    save_Barr_pos = list()
 
     ########### Go !
 
@@ -604,10 +612,10 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
             # The new position of each polymerase
             # if there is no RNAP already at this position
             RNAPs_pos[new_RNAPs_hooked_id] = tr_start[picked_tr[np.where(picked_tr!=-1)]].astype(int)
-            
+
             # Bug #1 Fix
             # We use new_RNAPs_hooked_id and RNAPs_pos[new_RNAPs_hooked_id] to create an ordered dictionary
-            # new_hooked_RNAPs_pos_dict contains [new hooked RNAP position as a key: new RNAP hooked id as value] 
+            # new_hooked_RNAPs_pos_dict contains [new hooked RNAP position as a key: new RNAP hooked id as value]
             new_hooked_RNAPs_pos_dict = dict(zip(RNAPs_pos[new_RNAPs_hooked_id], new_RNAPs_hooked_id))
             # We sort the dict by Keys (e.g position)
             # At the end we'll get the sorted positions with their corresponding ids
@@ -615,7 +623,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
             # Here idx are sorted based on the positions
             new_hooked_RNAPs_idx_sorted = [idx for idx in new_hooked_RNAPs_pos_ordered_dict.values()]
             new_hooked_RNAPs_pos_sorted = [pos for pos in new_hooked_RNAPs_pos_ordered_dict.keys()]
-            
+
             # take the positions and use them to get the index in which we will insert the new recruited RNAPs in Barr_pos array
             Barr_pos_RNAPs_idx = np.searchsorted(Barr_pos, new_hooked_RNAPs_pos_sorted)
             # after getting the idx, we start inserting
@@ -863,6 +871,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         copy(INI_file, output_path)
     except Exception as e:
         print("Input file was not copied")
+        sys.exit(1)
 
 
     save_files(output_path, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Barr_pos, save_mean_sig_wholeGenome, save_Dom_size, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
@@ -894,8 +903,10 @@ if __name__ == '__main__':
         #start_transcribing(INI_file, first_output_path, resume=True)
     except configparser.NoSectionError:
         print("Error ! Please check the path to the paraneters files !")
+        sys.exit(1)
     except PermissionError:
         print("Permission denied ! Please check the directory to the output files !")
+        sys.exit(1)
     except (FileNotFoundError, NameError):
         print("Error ! Please check the directory to the output files !")
-
+        sys.exit(1)
