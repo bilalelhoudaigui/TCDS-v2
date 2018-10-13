@@ -31,6 +31,8 @@ def read_config_file(path):
     config.read(path)
     return config
 
+
+"""
 # Read the config files and return the values of each variable
 # this function will be useful when we are in another script
 def read_config_file_v2(path):
@@ -78,6 +80,12 @@ def read_config_file_v2(path):
             print("Error computing SIGMA_0")
 
     return GFF_file, TSS_file, TTS_file, Prot_file, m, sigma_t, epsilon, SIGMA_0, DELTA_X, DELTA_T, RNAPS_NB, SIM_TIME, OUTPUT_STEP, GYRASE_CONC, TOPO_CONC, TOPO_CTE, GYRASE_CTE, k_GYRASE, x0_GYRASE, k_TOPO, x0_TOPO
+"""
+
+
+
+
+
 
 ###################### Reading files ######################
 
@@ -311,27 +319,27 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     Prot_file = config.get('INPUTS', 'BARR_FIX')
 
     # get values from the config file
-    m = config.getfloat('GLOBAL', 'm')
-    sigma_t = config.getfloat('GLOBAL', 'sigma_t')
-    epsilon = config.getfloat('GLOBAL', 'epsilon')
+    m = config.getfloat('PROMOTER', 'm')
+    sigma_t = config.getfloat('PROMOTER', 'sigma_t')
+    epsilon = config.getfloat('PROMOTER', 'epsilon')
 
+    DELTA_X = config.getfloat('GLOBAL', 'DELTA_X')
+    DELTA_T = config.getfloat('GLOBAL', 'DELTA_T')
+    
     RNAPs_genSC = config.getfloat('SIMULATION', 'RNAPs_genSC')
     SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
-    DELTA_X = config.getfloat('SIMULATION', 'DELTA_X')
-    DELTA_T = config.getfloat('SIMULATION', 'DELTA_T')
     RNAPS_NB = config.getint('SIMULATION', 'RNAPS_NB')
     SIM_TIME = config.getfloat('SIMULATION', 'SIM_TIME')
     OUTPUT_STEP = config.getfloat('SIMULATION', 'OUTPUT_STEP')
-
     GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
     TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
-    TOPO_CTE = config.getfloat('SIMULATION', 'TOPO_CTE')
-    GYRASE_CTE = config.getfloat('SIMULATION', 'GYRASE_CTE')
-    #TOPO_EFFICIENCY = config.getfloat('SIMULATION', 'TOPO_EFFICIENCY')
-    k_GYRASE = config.getfloat('SIMULATION', 'k_GYRASE')
-    x0_GYRASE = config.getfloat('SIMULATION', 'x0_GYRASE')
-    k_TOPO = config.getfloat('SIMULATION', 'k_TOPO')
-    x0_TOPO = config.getfloat('SIMULATION', 'x0_TOPO')
+    
+    TOPO_CTE = config.getfloat('TOPOISOMERASES', 'TOPO_CTE')
+    GYRASE_CTE = config.getfloat('TOPOISOMERASES', 'GYRASE_CTE')
+    k_GYRASE = config.getfloat('TOPOISOMERASES', 'k_GYRASE')
+    x0_GYRASE = config.getfloat('TOPOISOMERASES', 'x0_GYRASE')
+    k_TOPO = config.getfloat('TOPOISOMERASES', 'k_TOPO')
+    x0_TOPO = config.getfloat('TOPOISOMERASES', 'x0_TOPO')
     # Calculate SIGMA_0 based on Topoisomerases concentration.
     #SIGMA_0 = 0 #((-np.log(((GYRASE_CONC*GYRASE_CTE)/TOPO_CONC*TOPO_CTE)-1))/k)+x_0
 

@@ -45,8 +45,10 @@ def get_cov_bp(INI_file):
     # to get the cov_bp (a verifier)
     genome_size = sim.get_genome_size(gff_df_raw)
     genome = int(genome_size/DELTA_X)
+    #print(genome)
     cov_bp = np.arange(0, genome_size, DELTA_X)
-    cov_bp = np.resize(cov_bp, genome)
+    #print(cov_bp,len(cov_bp))
+    #cov_bp = np.resize(cov_bp, genome)
     return cov_bp
 
 def plot_genome(ax_dna, INI_file):
@@ -180,13 +182,12 @@ def compute_superc_distrib(Barr_pos, SC, cov_bp):
     #print(SC)
     n=len(cov_bp)
     if len(Barr_pos)>1:
-        #print(Barr_pos)
-        #print(SC)
-        #print(cov_bp)
         sizes=[Barr_pos[0]]+list(Barr_pos[1:]-Barr_pos[:(-1)])+[n-Barr_pos[-1]]
         SC=[SC[-1]]+list(SC)
-        #print(Barr_pos)
+        #print(Barr_pos,n)
         #print(sizes)
+        #print(SC)np.repeat(SC, sizes)
+        #print("le",len(np.repeat(SC, sizes)))
         return np.repeat(SC, sizes)
     elif len(SC)==1:
         return np.ones(n)*SC[0]
