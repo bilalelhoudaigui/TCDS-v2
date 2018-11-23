@@ -305,9 +305,9 @@ def get_SCprofiles_from_dir(output_dir,compute_topoisomerase=False,timepoints=No
         inf=compute_topoisomerase
         config = sim.read_config_file(inf)
         # get promoter values from the config file
-        m = config.getfloat('GLOBAL', 'm')
-        sigma_t = config.getfloat('GLOBAL', 'sigma_t')
-        epsilon = config.getfloat('GLOBAL', 'epsilon')
+        m = config.getfloat('PROMOTER', 'm')
+        sigma_t = config.getfloat('PROMOTER', 'sigma_t')
+        epsilon = config.getfloat('PROMOTER', 'epsilon')
         # get topoisomerase concentrations
         GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
         TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
@@ -370,9 +370,9 @@ def plot_promoter_response_and_SCvalues(INI_file,outfile=None):
         outfile=INI_file.split(".")[0]+"_promoter"
     config = sim.read_config_file(INI_file)
     # get promoter values from the config file
-    m = config.getfloat('GLOBAL', 'm')
-    sigma_t = config.getfloat('GLOBAL', 'sigma_t')
-    epsilon = config.getfloat('GLOBAL', 'epsilon')
+    m = config.getfloat('PROMOTER', 'm')
+    sigma_t = config.getfloat('PROMOTER', 'sigma_t')
+    epsilon = config.getfloat('PROMOTER', 'epsilon')
     # get topoisomerase constants
     GYRASE_CONC = config.getfloat('SIMULATION', 'GYRASE_CONC')
     TOPO_CONC = config.getfloat('SIMULATION', 'TOPO_CONC')
