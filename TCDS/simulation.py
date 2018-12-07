@@ -199,7 +199,7 @@ def get_tr_info(tss, tts, TU_tts, Kon, Poff):
                     j += 1
                 k += 1
     tr_size = np.abs(np.array(tr_start) - np.array(tr_end))
-    ts_beg_all_trs = np.zeros(len(tr_id), dtype=int64)
+    ts_beg_all_trs = np.zeros(len(tr_id), dtype=int)
     ts_remain_all = np.around(tr_size)
     return (tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
 
@@ -263,7 +263,7 @@ def get_tr_info_1(tss, tts, TU_tts, Kon, Poff):
                     j += 1
                 k += 1
     tr_size = np.abs(np.array(tr_start) - np.array(tr_end))
-    ts_beg_all_trs = np.zeros(len(tr_id), dtype=int64)
+    ts_beg_all_trs = np.zeros(len(tr_id), dtype=int)
     ts_remain_all = np.around(tr_size)
     return (tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
 
@@ -325,7 +325,7 @@ def get_tr_info_old(tss, tts, TU_tts, Kon, Poff):
                     j += 1
                 k += 1
     tr_size = np.abs(np.array(tr_start) - np.array(tr_end))
-    ts_beg_all_trs = np.zeros(len(tr_id), dtype=int64)
+    ts_beg_all_trs = np.zeros(len(tr_id), dtype=int)
     ts_remain_all = np.around(tr_size)
     return (tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
 
@@ -524,20 +524,20 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     tr_strand = np.array(tr_strand)
 
     tr_start = np.array(tr_start)/DELTA_X
-    tr_start = tr_start.astype(int64)
+    tr_start = tr_start.astype(int)
 
     tr_end = np.array(tr_end)/DELTA_X
-    tr_end = tr_end.astype(int64)
+    tr_end = tr_end.astype(int)
 
     tr_rate = np.array(tr_rate)
 
     tr_size = np.array(tr_size)/DELTA_X
-    tr_size = tr_size.astype(int64)
+    tr_size = tr_size.astype(int)
 
     ts_beg_all_trs = np.array(ts_beg_all_trs)
 
     ts_remain_all = np.array(ts_remain_all)/DELTA_X
-    ts_remain_all = ts_remain_all.astype(int64)
+    ts_remain_all = ts_remain_all.astype(int)
 
     genome = int(genome_size/DELTA_X)
 
@@ -591,7 +591,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         ts_beg = np.full(RNAPS_NB, np.nan)
         ts_remain = np.full(RNAPS_NB, np.nan)
         # RNAPs_tr will contain the id of the picked transcript
-        RNAPs_tr = np.full(RNAPS_NB, -1, dtype=(int64))
+        RNAPs_tr = np.full(RNAPS_NB, -1, dtype=(int))
         # get the TSSs ids
         tss_id = tss.index.values
 
