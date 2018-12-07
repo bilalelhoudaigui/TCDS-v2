@@ -215,7 +215,7 @@ def plot_superc_distrib(ax, Barr_pos, SC, cov_bp, DELTA_X, Barr_fix):
         
 
     
-def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None):
+def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None, width=7, height=1.5):
     """
     Plots a genome into an output figure file. Optionally, make a second plot with one or several signals along the genome and/or RNAP positions. 
     - the signals must have the same size as the genome in reduced units. They are a list of tuples (label, array of values) of genome size OR tuple (label, value, Barr_pos) to draw the distribution at given timepoint from simul output
@@ -224,14 +224,14 @@ def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None):
     # Create the figure and all axes to draw to
 
     if signals==None:
-        fig = plt.figure(figsize=(7,1.5)) # 3.2,2.7
+        fig = plt.figure(figsize=(width,height)) # 3.2,2.7
         ax_dna=plt.subplot()
         SIGMA_0, DELTA_X, BARR_FIX, cov_bp=plot_genome(ax_dna, INI_file)
         if RNAPs!=None:
             ax_dna.plot(RNAPs*DELTA_X, np.full(len(RNAPs), 0.5, dtype=float), 'o', markersize=10, color="blue", zorder=100)
 
     else:
-        fig = plt.figure(figsize=(7,3)) # 3.2,2.7
+        fig = plt.figure(figsize=(width,height)) # 3.2,2.7
         gs = gridspec.GridSpec(2, 1, height_ratios=[1,1])
         
         ax_sig = plt.subplot(gs[1])
@@ -260,12 +260,12 @@ def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None):
                 ax_dna.plot(RNAPs*DELTA_X, np.full(len(RNAPs), 0, dtype=float), 'o', markersize=10, color="blue", zorder=100)
                 for x in RNAPs:
                     #print(x*DELTA_X)
-                    ax_dna.axvline(x=x*DELTA_X,ymin=-1.5,ymax=0.5,color="blue",ls="--",lw=.8,zorder=110,clip_on=False)
+                    ax_dna.axvline(x=x*DELTA_X,ymin=-1.7,ymax=0.5,color="blue",ls="--",lw=.8,zorder=110,clip_on=False)
                     #ax_dna.plot([x*DELTA_X,x*DELTA_X],[0.5,0],zorder=120)
                     # con=pat.ConnectionPatch(xyA=(x*DELTA_X, 0.5), xyB=(x*DELTA_X, 0.), coordsA="data", coordsB="data", axesA=ax_dna, axesB=ax_sig, color="red")
                     # ax_sig.add_artist(con)
             for x in BARR_FIX:
-                ax_dna.axvline(x=x,ymin=-1.5,ymax=0.5,color="black",ls="--",lw=0.8,zorder=110,clip_on=False)
+                ax_dna.axvline(x=x,ymin=-1.7,ymax=0.5,color="black",ls="--",lw=0.8,zorder=110,clip_on=False)
     plt.tight_layout()
     for ext in exts:
         plt.savefig(outfile+ext)

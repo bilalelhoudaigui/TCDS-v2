@@ -147,6 +147,73 @@ def f_init_rate(tr_prob, sig, sigma_t, epsilon, m):
 
 
 # Get the list of all possible transcripts
+def get_tr_info_new(tss, tts, Kon):
+
+    TU_tss,TU_tts = get_TU_tss_tts(tss,tts)
+    tr_id = []
+    tr_start = []
+    tr_end = []
+    tr_strand = []
+    tr_size = []
+    tr_rate = []
+    sum_Kon = np.sum(Kon)
+    TU_ids=tss["TUindex"].tolist()
+    
+    j = 0 # trancript id indice
+
+    for TU_id in TU_ids:
+        # load TSS and TTS
+        
+
+
+    for i in tss.index.values: # All TSSs
+        # get the TU of this tss
+        TU_id = tss['TUindex'][i]
+        # the list of TTS that are in the same TU of this tss_id (i)
+        # TU_tts ex : defaultdict(list, {0: [1150, 2350], 1: [6250]})
+        # On prend tt les tts qui existent dans la meme UT du tss choisi
+        this_TU_tts = TU_tts[TU_id] # pour 0 => [1150, 2350]
+        # + or -
+        if tss['TUorient'][i] == '+' :
+            # go right
+            k = 0 # TTS id index : k start from the first position of each TU
+            proba_rest = 1
+            while proba_rest > 0 :
+                if tss['TSS_pos'][i] < this_TU_tts[k]:
+                    tr_id.append(j)
+                    tr_strand.append(1)
+                    tr_start.append(tss['TSS_pos'][i])
+                    # after getting the TSSs, we shall (in every loop) generate a new tr_end
+                    tr_end.append(this_TU_tts[k])
+                    # the probability to choose a specific transcript
+                    tr_rate.append(Kon[i] * (Poff[k] * proba_rest))
+                    proba_rest = (1 - Poff[k]) * proba_rest
+                    j += 1
+                k += 1
+        else:
+            # go left
+            k = 0
+            proba_rest = 1
+            while proba_rest > 0 and k < len(this_TU_tts) :
+                if this_TU_tts[k] < tss['TSS_pos'][i] :
+                    tr_id.append(j)
+                    tr_strand.append(-1)
+                    tr_start.append(tss['TSS_pos'][i])
+                    # after getting them, we shall (in every loop) generate a new tr_end
+                    tr_end.append(this_TU_tts[i])
+                    # the probability to choose a specific transcript
+                    tr_rate.append(Kon[i] * (Poff[k] * proba_rest))
+                    proba_rest = (1 - Poff[k]) * proba_rest
+                    j += 1
+                k += 1
+    tr_size = np.abs(np.array(tr_start) - np.array(tr_end))
+    ts_beg_all_trs = np.zeros(len(tr_id), dtype=int64)
+    ts_remain_all = np.around(tr_size)
+    return (tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
+
+
+
+# Get the list of all possible transcripts
 def get_tr_info(tss, tts, TU_tts, Kon, Poff):
     this_TU_tts = []
     tr_id = []
@@ -208,9 +275,8 @@ def get_tr_info(tss, tts, TU_tts, Kon, Poff):
 
 
 
-
-
 # Get the list of all possible transcripts
+# VERSION FOR SIMPLE TUs WITH ONLY ONE TSS AND ONE TTS
 def get_tr_info_1(tss, tts, TU_tts, Kon, Poff):
     this_TU_tts = []
     tr_id = []
@@ -336,11 +402,13 @@ def f_prob_unhooked_rate(sum_Kon, DELTA_T, RNAPs_unhooked_nbr):
     return np.exp(-sum_Kon*DELTA_T)/RNAPs_unhooked_nbr
 
 # Get the transciption unit with the list of tts belonging to TU.
-def get_TU_tts(tss, tts):
+def get_TU_tss_tts(tss, tts):
+    TU_tss = col.defaultdict(list)
     TU_tts = col.defaultdict(list)
     for index, TUindex in enumerate(tss['TUindex'].values):
+        TU_tss[TUindex].append(tss['TSS_pos'][index])
         TU_tts[TUindex].append(tts['TTS_pos'][index])
-    return TU_tts
+    return TU_tss,TU_tts
 
 def calc_sigma(Barr_sigma, GYRASE_CONC, k_GYRASE, x0_GYRASE, GYRASE_CTE, TOPO_CONC, k_TOPO, x0_TOPO, TOPO_CTE, DELTA_T):
     d_sigma = (-GYRASE_CONC*(1/(1+np.exp(-k_GYRASE*(Barr_sigma-x0_GYRASE))))*GYRASE_CTE + TOPO_CONC*1/(1+np.exp(k_TOPO*(Barr_sigma-x0_TOPO)))*TOPO_CTE) * DELTA_T
@@ -497,7 +565,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     Kon = tss['TSS_strength'].values
 
     # get the Poff
-    Poff = tts['TTS_proba_off'].values
+    #Poff = tts['TTS_proba_off'].values
 
     # get the genome size
     genome_size = get_genome_size(gff_df_raw)
@@ -505,7 +573,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
 
     # Dict of transciption units with the list of tts belonging to TU.
     # One TU starts from a single TSS but can have several TTS...
-    TU_tts = get_TU_tts(tss, tts)
+    #TU_tts = get_TU_tts(tss, tts)
     
     # The RNAPs id
     RNAPs_id = np.full(RNAPS_NB, range(0, RNAPS_NB), dtype=int)
@@ -517,7 +585,8 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     # strands = str2num(gff_df['strand'].values)
 
     # list of all possible transcripts
-    tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all = get_tr_info_1(tss, tts, TU_tts, Kon, Poff)
+    #tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all = get_tr_info_1(tss, tts, TU_tts, Kon, Poff)
+    tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all = get_tr_info(tss, tts, Kon)
     #print(tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
     # convert all variables to numpy array
     tr_id = np.array(tr_id)
