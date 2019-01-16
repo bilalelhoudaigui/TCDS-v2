@@ -238,32 +238,32 @@ def get_tr_info_1(tss, tts, TU_tts, Kon, Poff):
             k = 0 # TTS id index : k start from the first position of each TU
             proba_rest = 1
             while proba_rest > 0 :
-                if tss['TSS_pos'][i] < this_TU_tts[k]: #tts['TTS_pos'][k]:
-                    tr_id.append(j)
-                    tr_strand.append(1)
-                    tr_start.append(tss['TSS_pos'][i])
-                    # after getting the TSSs, we shall (in every loop) generate a new tr_end
-                    tr_end.append(tts['TTS_pos'][i])
-                    # the probability to choose a specific transcript
-                    tr_rate.append(Kon[i] * (Poff[i] * proba_rest))
-                    proba_rest = (1 - Poff[i]) * proba_rest
-                    j += 1
+                #if tss['TSS_pos'][i] < this_TU_tts[k]: #tts['TTS_pos'][k]:
+                tr_id.append(j)
+                tr_strand.append(1)
+                tr_start.append(tss['TSS_pos'][i])
+                # after getting the TSSs, we shall (in every loop) generate a new tr_end
+                tr_end.append(tts['TTS_pos'][i])
+                # the probability to choose a specific transcript
+                tr_rate.append(Kon[i] * (Poff[i] * proba_rest))
+                proba_rest = (1 - Poff[i]) * proba_rest
+                j += 1
                 k += 1
         else:
             # go left
             k = 0
             proba_rest = 1
             while proba_rest > 0 and k < len(this_TU_tts) :
-                if this_TU_tts[k] < tss['TSS_pos'][i] : #tts['TTS_pos'][k]
-                    tr_id.append(j)
-                    tr_strand.append(-1)
-                    tr_start.append(tss['TSS_pos'][i])
-                    # after getting them, we shall (in every loop) generate a new tr_end
-                    tr_end.append(tts["TTS_pos"][i])
-                    # the probability to choose a specific transcript
-                    tr_rate.append(Kon[i] * (Poff[i] * proba_rest))
-                    proba_rest = (1 - Poff[i]) * proba_rest
-                    j += 1
+                #if this_TU_tts[k] < tss['TSS_pos'][i] : #tts['TTS_pos'][k]
+                tr_id.append(j)
+                tr_strand.append(-1)
+                tr_start.append(tss['TSS_pos'][i])
+                # after getting them, we shall (in every loop) generate a new tr_end
+                tr_end.append(tts["TTS_pos"][i])
+                # the probability to choose a specific transcript
+                tr_rate.append(Kon[i] * (Poff[i] * proba_rest))
+                proba_rest = (1 - Poff[i]) * proba_rest
+                j += 1
                 k += 1
     tr_size = np.abs(np.array(tr_start) - np.array(tr_end))
     ts_beg_all_trs = np.zeros(len(tr_id), dtype=int)
