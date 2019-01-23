@@ -858,11 +858,14 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
 
         Barr_pos[np.where(Barr_type == -1)]-=1
         Barr_pos[np.where(Barr_type == 1)]+=1
+        #Barr_pos=np.mod(Barr_pos,genome)
 
         # Update the position of polymerases still transcribing
         RNAPs_pos[np.where(RNAPs_strand == 1)]+=1
         RNAPs_pos[np.where(RNAPs_strand == -1)]-=1
-
+        #RNAPs_pos=np.mod(RNAPs_pos,genome)
+        #print(RNAPs_pos,RNAPs_strand,Barr_pos)
+        
         # Update the Dom_size (+1 or -1)
         # if we have at least two barrier
         try:
@@ -873,6 +876,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         except (IndexError, ValueError):
             Dom_size = np.array([genome])
             Barr_sigma = np.array([SIGMA_0])
+        print(Dom_size) 
 
         # UPDATE SIGMA
         # R_plus_pos : the ids of RNA pol in the + strand
