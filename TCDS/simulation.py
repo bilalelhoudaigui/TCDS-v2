@@ -207,11 +207,51 @@ def get_tr_info(tss, tts, TU_tts, Kon, Poff):
 
 
 
+def is_gene_crossing_origin(tr_start, tr_end, tr_strand, origin):
+    """
+        Check if there's a gene crossing the origin, there are four
+        cases depending on the orientations of the first and last gene:
+        1. ___G++(Ori)++____G++++__
+        2. ___G++(Ori)++____G----__
+        3. ___G--(Ori)--____G++++__
+        4. ___G--(Ori)--____G----__
+    """
+    # getting genes strands
+    last_gene_strand = tr_strand[-1]
+    first_gene_strand = tr_strand[0]
 
+    # case : ___G++(Ori)++____G++++__
+    if last_gene_strand == 1 and first_gene_strand == 1:
+        print("IN 1")
+        gene_crossing_origin = tr_start[0] > tr_end[-1]
+        # calculate tr_size
+        last_gene_size = origin - tr_start[-1] + tr_end[-1]
+
+    # case : ___G++(Ori)++____G----__
+    elif last_gene_strand == 1 and first_gene_strand == -1:
+        print("IN 2")
+        gene_crossing_origin = tr_end[0] > tr_end[-1]
+        last_gene_size = origin - tr_start[-1] + tr_end[-1]
+
+    # case : ___G--(Ori)--____G++++__
+    elif last_gene_strand == -1 and first_gene_strand == 1:
+        print("IN 3")
+        # tr_start = np.array([24, 74, 85]) #85 / 2
+        # tr_end = np.array([42, 59, 4]) # 4 / 87
+        gene_crossing_origin = tr_start[0] > tr_start[-1]
+        last_gene_size = origin - tr_end[-1] + tr_start[-1]
+
+    # case : ___G--(Ori)--____G----__
+    elif last_gene_strand == -1 and first_gene_strand == -1:
+        print("IN 4")
+        gene_crossing_origin = tr_end[0] > tr_start[-1]
+        last_gene_size = origin - tr_end[-1] + tr_start[-1]
+
+    return gene_crossing_origin, last_gene_size
 
 
 # Get the list of all possible transcripts
-def get_tr_info_1(tss, tts, TU_tts, Kon, Poff):
+def get_tr_info_1(tss, tts, TU_tts, Kon, Poff, origin):
     this_TU_tts = []
     tr_id = []
     tr_start = []
@@ -220,7 +260,7 @@ def get_tr_info_1(tss, tts, TU_tts, Kon, Poff):
     tr_size = []
     tr_rate = []
     sum_Kon = np.sum(Kon)
-    
+
     j = 0 # trancript id indice
     for i in tss.index.values: # All TSSs
         #print("***", i)
@@ -265,7 +305,19 @@ def get_tr_info_1(tss, tts, TU_tts, Kon, Poff):
                 proba_rest = (1 - Poff[i]) * proba_rest
                 j += 1
                 k += 1
+    # The calculation of the last element in tr_size depends on
+    # whether there is a gene crossing the origin or not:
+    # we start by normal calculation of tr_size
     tr_size = np.abs(np.array(tr_start) - np.array(tr_end))
+    # Then we check if there's a gene crossing the origin
+    # we're getting back 'gene_crossing_origin' (either True or False)
+    # and the size of the last gene (calculated depending on the orientations)
+    gene_crossing_origin, last_gene_size = is_gene_crossing_origin(tr_start, tr_end, tr_strand, origin)
+
+    if gene_crossing_origin:
+        # Alter the tr_size of the last gene -the one crossing the Origin-
+        tr_size[-1] = last_gene_size
+
     ts_beg_all_trs = np.zeros(len(tr_id), dtype=int)
     ts_remain_all = np.around(tr_size)
     # print("tr_id", tr_id)
@@ -409,11 +461,8 @@ def save_files(output_path,
 
 def start_transcribing(INI_file, first_output_path=None, resume_output_path=None, resume=False):
 
-    """Example function with types documented in the docstring.
-
-    `PEP 484`_ type annotations are supported. If attribute, parameter, and
-    return types are annotated according to `PEP 484`_, they do not need to be
-    included in the docstring:
+    """
+    Function to start/resume the transcription simulation process
 
     Args:
         INI_file (str): The path to the parameter file.
@@ -496,57 +545,75 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     tts = load_tab_file(pth+TTS_file)
     # we will load the prot_file later
 
+    print("------ [BIGIN] General Information ------")
     # get the TSS position
     TSS_pos = (tss['TSS_pos'].values/DELTA_X).astype(int)
+    print("TSS_pos ---= ", TSS_pos)
 
     # get the initiation rate (Kon)
     Kon = tss['TSS_strength'].values
+    print("Kon ---= ", Kon)
 
     # get the Poff
     Poff = tts['TTS_proba_off'].values
+    print("Poff ---= ", Poff)
 
     # get the genome size
     genome_size = get_genome_size(gff_df_raw)
+    print("genome_size ---= ", genome_size)
+
     gff_df = rename_gff_cols(gff_df_raw)
 
     # Dict of transciption units with the list of tts belonging to TU.
     # One TU starts from a single TSS but can have several TTS...
     TU_tts = get_TU_tts(tss, tts)
-    
+    print("TU_tts ---= ", TU_tts)
+
     # The RNAPs id
     RNAPs_id = np.full(RNAPS_NB, range(0, RNAPS_NB), dtype=int)
+    print("RNAPs_id ---= ", RNAPs_id)
 
     # RNAPs_last_pos
     RNAPs_last_pos = np.full(RNAPS_NB, np.nan)
+    print("RNAPs_last_pos ---= ", RNAPs_last_pos)
 
     ## get the strands orientation
     # strands = str2num(gff_df['strand'].values)
 
     # list of all possible transcripts
-    tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all = get_tr_info_1(tss, tts, TU_tts, Kon, Poff)
+    tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all = get_tr_info_1(tss, tts, TU_tts, Kon, Poff, genome_size)
     #print(tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
     # convert all variables to numpy array
     tr_id = np.array(tr_id)
     tr_strand = np.array(tr_strand)
+    print("tr_id ---= ", tr_id)
+    print("tr_strand ---= ", tr_strand)
 
     tr_start = np.array(tr_start)/DELTA_X
     tr_start = tr_start.astype(int)
+    print("tr_start ---= ", tr_start)
 
     tr_end = np.array(tr_end)/DELTA_X
     tr_end = tr_end.astype(int)
+    print("tr_end ---= ", tr_end)
 
     tr_rate = np.array(tr_rate)
+    print("tr_rate ---= ", tr_rate)
 
     tr_size = np.array(tr_size)/DELTA_X
     tr_size = tr_size.astype(int)
+    print("tr_size ---= ", tr_size)
 
     ts_beg_all_trs = np.array(ts_beg_all_trs)
+    print("ts_beg_all_trs ---= ", ts_beg_all_trs)
 
     ts_remain_all = np.array(ts_remain_all)/DELTA_X
     ts_remain_all = ts_remain_all.astype(int)
+    print("ts_remain_all ---= ", ts_remain_all)
 
     genome = int(genome_size/DELTA_X)
-
+    print("genome ---= ", genome)
+    print("------ [END] General Information ------")
     if resume == False:
         # The position of RNAPs
         RNAPs_pos = np.full(RNAPS_NB, np.nan)
@@ -865,7 +932,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         RNAPs_pos[np.where(RNAPs_strand == -1)]-=1
         #RNAPs_pos=np.mod(RNAPs_pos,genome)
         #print(RNAPs_pos,RNAPs_strand,Barr_pos)
-        
+
         # Update the Dom_size (+1 or -1)
         # if we have at least two barrier
         try:
@@ -876,7 +943,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         except (IndexError, ValueError):
             Dom_size = np.array([genome])
             Barr_sigma = np.array([SIGMA_0])
-        print(Dom_size) 
+        #!print(Dom_size)
 
         # UPDATE SIGMA
         # R_plus_pos : the ids of RNA pol in the + strand
