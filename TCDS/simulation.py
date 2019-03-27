@@ -207,51 +207,106 @@ def get_tr_info(tss, tts, TU_tts, Kon, Poff):
 
 
 
-def is_gene_crossing_origin(tr_start, tr_end, tr_strand, origin):
+def is_gene_crossing_origin(ts_sorted, genome_size):
     """
-        Check if there's a gene crossing the origin, there are four
-        cases depending on the orientations of the first and last gene:
+    Check if there's a gene crossing the origin, there are four
+    cases depending on the orientations of the first and last gene:
         1. ___G++(Ori)++____G++++__
         2. ___G++(Ori)++____G----__
         3. ___G--(Ori)--____G++++__
         4. ___G--(Ori)--____G----__
+    Args:
+        ts_sorted (DataFrame): pandas DataFrame of sorted Transcripts (Start and End) Sites.
+
+    Returns:
+        gene_crossing_origin (boolean) : true or false
     """
+    gene_crossing_origin = False
+    last_gene_size = 0
+
     # getting genes strands
-    last_gene_strand = tr_strand[-1]
-    first_gene_strand = tr_strand[0]
+    first_line_strand = ts_sorted['TUorient'].values[0]
+    second_line_strand = ts_sorted['TUorient'].values[1]
+    # getting genes tss positions
+    first_line_tss_pos = ts_sorted['TSS_pos'].values[0]
+    second_line_tss_pos = ts_sorted['TSS_pos'].values[1]
+
+    # getting genes tts positions
+    first_line_tts_pos = ts_sorted['TTS_pos'].values[0]
+    second_line_tts_pos = ts_sorted['TTS_pos'].values[1]
 
     # case : ___G++(Ori)++____G++++__
-    if last_gene_strand == 1 and first_gene_strand == 1:
-        print("IN 1")
-        gene_crossing_origin = tr_start[0] > tr_end[-1]
-        # calculate tr_size
-        last_gene_size = origin - tr_start[-1] + tr_end[-1]
+    if first_line_strand == '+' and second_line_strand == '+':
+        print("IN ___G++(Ori)++____G++++__")
+        gene_crossing_origin = second_line_tss_pos > first_line_tts_pos
+        last_gene_size = genome_size - first_line_tss_pos + first_line_tts_pos
 
     # case : ___G++(Ori)++____G----__
-    elif last_gene_strand == 1 and first_gene_strand == -1:
-        print("IN 2")
-        gene_crossing_origin = tr_end[0] > tr_end[-1]
-        last_gene_size = origin - tr_start[-1] + tr_end[-1]
+    elif first_line_strand == '+' and second_line_strand == '-':
+        print("IN ___G++(Ori)++____G----__")
+        gene_crossing_origin = second_line_tts_pos > first_line_tts_pos
+        last_gene_size = genome_size - first_line_tss_pos + first_line_tts_pos
 
     # case : ___G--(Ori)--____G++++__
-    elif last_gene_strand == -1 and first_gene_strand == 1:
-        print("IN 3")
-        # tr_start = np.array([24, 74, 85]) #85 / 2
-        # tr_end = np.array([42, 59, 4]) # 4 / 87
-        gene_crossing_origin = tr_start[0] > tr_start[-1]
-        last_gene_size = origin - tr_end[-1] + tr_start[-1]
+    elif first_line_strand == '-' and second_line_strand == '+':
+        print("IN ___G--(Ori)--____G++++__")
+        gene_crossing_origin = second_line_tss_pos > first_line_tss_pos
+        last_gene_size = genome_size - first_line_tts_pos + first_line_tss_pos
 
     # case : ___G--(Ori)--____G----__
-    elif last_gene_strand == -1 and first_gene_strand == -1:
-        print("IN 4")
-        gene_crossing_origin = tr_end[0] > tr_start[-1]
-        last_gene_size = origin - tr_end[-1] + tr_start[-1]
+    elif first_line_strand == '-' and second_line_strand == '-':
+        print("IN ___G--(Ori)--____G----__")
+        gene_crossing_origin = second_line_tts_pos > first_line_tss_pos
+        last_gene_size = genome_size - first_line_tts_pos + first_line_tss_pos
 
+    print("******** last_gene_size ==== ", last_gene_size)
     return gene_crossing_origin, last_gene_size
 
 
+def sort_by(all_tss_pos, all_tts_pos):
+    """
+    Sort either by TSS positions or TTS ones
+    depending on where is the minimum value
+    Args:
+        all_tss_pos (list): list of all TSS position extracted from the 'tss.dat' file.
+        all_tts_pos (list): list of all TTS position extracted from the 'tts.dat' file.
+
+    Returns:
+        col_name (string) : which will be either "TSS_pos" or "TSS_pos"
+    """
+    min_tss = min(all_tss_pos)
+    min_tts = min(all_tts_pos)
+    col_name = ""
+    if min_tss < min_tts:
+        col_name = "TSS_pos"
+    else:
+        col_name = "TTS_pos"
+    return col_name
+
+def sort_tss_tts_files(tss, tts, genome_size, gene_crossing_origin, last_gene_size):
+    # combine the two file to keep the lines consistents/together
+    ts = pd.concat([tss, tts], axis=1, join_axes=[tss.index])
+    # we sort the TSSs and TTSs info before using them
+    # the sorting will be by the column where the minimum value is.
+    col_name = sort_by(tss['TSS_pos'].values, tts['TTS_pos'].values)
+    ts_sorted = ts.sort_values(by=[col_name])
+    ts_sorted.reset_index(drop=True, inplace=True)
+    # we check if there any gene crossing the Origin
+    gene_crossing_origin, last_gene_size = is_gene_crossing_origin(ts_sorted, genome_size)
+    if gene_crossing_origin:
+        # if it's the case it sould be moved
+        # from the first line to the last one in tss/tts files
+        ts_sorted = ts_sorted.apply(np.roll, shift=-1)
+    # re create the ordered tss and tts
+    tss_sorted = ts_sorted.filter(['TUindex','TUorient','TSS_pos','TSS_strength'], axis=1)
+    tts_sorted = ts_sorted.filter(['TUindex','TUorient','TTS_pos','TTS_proba_off'], axis=1)
+    # TODO: save the new sorted tss/tts files
+
+    return (tss_sorted, tts_sorted, gene_crossing_origin, last_gene_size)
+
+
 # Get the list of all possible transcripts
-def get_tr_info_1(tss, tts, TU_tts, Kon, Poff, origin):
+def get_tr_info_1(tss, tts, TU_tts, Kon, Poff, genome_size, gene_crossing_origin, last_gene_size):
     this_TU_tts = []
     tr_id = []
     tr_start = []
@@ -312,8 +367,10 @@ def get_tr_info_1(tss, tts, TU_tts, Kon, Poff, origin):
     # Then we check if there's a gene crossing the origin
     # we're getting back 'gene_crossing_origin' (either True or False)
     # and the size of the last gene (calculated depending on the orientations)
-    gene_crossing_origin, last_gene_size = is_gene_crossing_origin(tr_start, tr_end, tr_strand, origin)
-
+    # this 'ts = pd.concat([tss, tts], axis=1, join_axes=[tss.index])' is temporary
+    #ts_sorted = pd.concat([tss, tts], axis=1, join_axes=[tss.index])
+    #gene_crossing_origin, last_gene_size = is_gene_crossing_origin(ts_sorted, genome_size)
+    # TODO: pass 'tss' an 'tts' to is_gene_crossing_origin() instead of 'ts_sorted'
     if gene_crossing_origin:
         # Alter the tr_size of the last gene -the one crossing the Origin-
         tr_size[-1] = last_gene_size
@@ -541,9 +598,23 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         pth+="/"
 
     gff_df_raw = load_gff(pth+GFF_file)
-    tss = load_tab_file(pth+TSS_file)
+
+    # get the genome size
+    genome_size = get_genome_size(gff_df_raw)
+    print("genome_size ---= ", genome_size)
+
+    # we drop "TUorient" and "TUindex" to remove duplicates
+    # because there present in both TSS.dat and TTS.dat files
+    # we will put them back later in sort_tss_tts_files() function
+    tss = load_tab_file(pth+TSS_file).drop(columns="TUorient").drop(columns="TUindex")
     tts = load_tab_file(pth+TTS_file)
     # we will load the prot_file later
+
+    # here we sort the TSSs and TTSs info before using them
+    # and we have to take into account cases where gene is crossing the Origin
+    gene_crossing_origin = False
+    last_gene_size = 0
+    tss, tts, gene_crossing_origin, last_gene_size = sort_tss_tts_files(tss, tts, genome_size, gene_crossing_origin, last_gene_size)
 
     print("------ [BIGIN] General Information ------")
     # get the TSS position
@@ -557,10 +628,6 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     # get the Poff
     Poff = tts['TTS_proba_off'].values
     print("Poff ---= ", Poff)
-
-    # get the genome size
-    genome_size = get_genome_size(gff_df_raw)
-    print("genome_size ---= ", genome_size)
 
     gff_df = rename_gff_cols(gff_df_raw)
 
@@ -581,7 +648,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     # strands = str2num(gff_df['strand'].values)
 
     # list of all possible transcripts
-    tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all = get_tr_info_1(tss, tts, TU_tts, Kon, Poff, genome_size)
+    tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all = get_tr_info_1(tss, tts, TU_tts, Kon, Poff, genome_size, gene_crossing_origin, last_gene_size)
     #print(tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
     # convert all variables to numpy array
     tr_id = np.array(tr_id)
