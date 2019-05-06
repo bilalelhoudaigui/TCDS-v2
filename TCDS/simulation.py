@@ -876,7 +876,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         except (IndexError, ValueError):
             Dom_size = np.array([genome])
             Barr_sigma = np.array([SIGMA_0])
-        print(Dom_size) 
+        #print(Dom_size) 
 
         # UPDATE SIGMA
         # R_plus_pos : the ids of RNA pol in the + strand
