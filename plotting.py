@@ -1,4 +1,4 @@
-import simulation as sim
+import TSC as sim
 import numpy as np
 import matplotlib.pyplot as plt
 import dnaplotlib as dpl

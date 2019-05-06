@@ -107,7 +107,7 @@ def str2num(s):
     return s
 
 def get_tr_nbr_csv(csv_file):
-    csv_tr_nbr = pd.read_csv(csv_file, sep=';', header=None)
+    csv_tr_nbr = pd.read_csv(csv_file, sep='\t', header=None)
     tr_nbr = csv_tr_nbr.values
     return tr_nbr.flatten()
 
@@ -144,69 +144,6 @@ def f_init_rate(tr_prob, sig, sigma_t, epsilon, m):
     tr_prob_sig = tr_prob * np.exp((1/(1+np.exp((sig-sigma_t)/epsilon)))*m)
     return tr_prob_sig
 
-
-
-# Get the list of all possible transcripts
-def get_tr_info(tss, tts, TU_tts, Kon, Poff):
-    this_TU_tts = []
-    tr_id = []
-    tr_start = []
-    tr_end = []
-    tr_strand = []
-    tr_size = []
-    tr_rate = []
-    sum_Kon = np.sum(Kon)
-
-    j = 0 # trancript id indice
-    for i in tss.index.values: # All TSSs
-        # get the TU of this tss
-        TU_id = tss['TUindex'][i]
-        # the list of TTS that are in the same TU of this tss_id (i)
-        # TU_tts ex : defaultdict(list, {0: [1150, 2350], 1: [6250]})
-        # On prend tt les tts qui existent dans la meme UT du tss choisi
-        this_TU_tts = TU_tts[TU_id] # pour 0 => [1150, 2350]
-        # + or -
-        if tss['TUorient'][i] == '+' :
-            # go right
-            k = 0 # TTS id index : k start from the first position of each TU
-            proba_rest = 1
-            while proba_rest > 0 :
-                if tss['TSS_pos'][i] < this_TU_tts[k]:
-                    tr_id.append(j)
-                    tr_strand.append(1)
-                    tr_start.append(tss['TSS_pos'][i])
-                    # after getting the TSSs, we shall (in every loop) generate a new tr_end
-                    tr_end.append(this_TU_tts[k])
-                    # the probability to choose a specific transcript
-                    tr_rate.append(Kon[i] * (Poff[k] * proba_rest))
-                    proba_rest = (1 - Poff[k]) * proba_rest
-                    j += 1
-                k += 1
-        else:
-            # go left
-            k = 0
-            proba_rest = 1
-            while proba_rest > 0 and k < len(this_TU_tts) :
-                if this_TU_tts[k] < tss['TSS_pos'][i] :
-                    tr_id.append(j)
-                    tr_strand.append(-1)
-                    tr_start.append(tss['TSS_pos'][i])
-                    # after getting them, we shall (in every loop) generate a new tr_end
-                    tr_end.append(this_TU_tts[i])
-                    # the probability to choose a specific transcript
-                    tr_rate.append(Kon[i] * (Poff[k] * proba_rest))
-                    proba_rest = (1 - Poff[k]) * proba_rest
-                    j += 1
-                k += 1
-    tr_size = np.abs(np.array(tr_start) - np.array(tr_end))
-    ts_beg_all_trs = np.zeros(len(tr_id), dtype=int)
-    ts_remain_all = np.around(tr_size)
-    return (tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
-
-
-
-
-
 def is_gene_crossing_origin(ts_sorted, genome_size):
     """
     Check if there's a gene crossing the origin, there are four
@@ -237,29 +174,29 @@ def is_gene_crossing_origin(ts_sorted, genome_size):
 
     # case : ___G++(Ori)++____G++++__
     if first_line_strand == '+' and second_line_strand == '+':
-        print("IN ___G++(Ori)++____G++++__")
+        #print("IN ___G++(Ori)++____G++++__")
         gene_crossing_origin = second_line_tss_pos > first_line_tts_pos
         last_gene_size = genome_size - first_line_tss_pos + first_line_tts_pos
 
     # case : ___G++(Ori)++____G----__
     elif first_line_strand == '+' and second_line_strand == '-':
-        print("IN ___G++(Ori)++____G----__")
+        #print("IN ___G++(Ori)++____G----__")
         gene_crossing_origin = second_line_tts_pos > first_line_tts_pos
         last_gene_size = genome_size - first_line_tss_pos + first_line_tts_pos
 
     # case : ___G--(Ori)--____G++++__
     elif first_line_strand == '-' and second_line_strand == '+':
-        print("IN ___G--(Ori)--____G++++__")
+        #print("IN ___G--(Ori)--____G++++__")
         gene_crossing_origin = second_line_tss_pos > first_line_tss_pos
         last_gene_size = genome_size - first_line_tts_pos + first_line_tss_pos
 
     # case : ___G--(Ori)--____G----__
     elif first_line_strand == '-' and second_line_strand == '-':
-        print("IN ___G--(Ori)--____G----__")
+        #print("IN ___G--(Ori)--____G----__")
         gene_crossing_origin = second_line_tts_pos > first_line_tss_pos
         last_gene_size = genome_size - first_line_tts_pos + first_line_tss_pos
-
-    print("******** last_gene_size ==== ", last_gene_size)
+        
+    #print("******** last_gene_size ==== ", last_gene_size)
     return gene_crossing_origin, last_gene_size
 
 
@@ -270,7 +207,6 @@ def sort_by(all_tss_pos, all_tts_pos):
     Args:
         all_tss_pos (list): list of all TSS position extracted from the 'tss.dat' file.
         all_tts_pos (list): list of all TTS position extracted from the 'tts.dat' file.
-
     Returns:
         col_name (string) : which will be either "TSS_pos" or "TSS_pos"
     """
@@ -301,7 +237,6 @@ def sort_tss_tts_files(tss, tts, genome_size, gene_crossing_origin, last_gene_si
     tss_sorted = ts_sorted.filter(['TUindex','TUorient','TSS_pos','TSS_strength'], axis=1)
     tts_sorted = ts_sorted.filter(['TUindex','TUorient','TTS_pos','TTS_proba_off'], axis=1)
     # TODO: save the new sorted tss/tts files
-
     return (tss_sorted, tts_sorted, gene_crossing_origin, last_gene_size)
 
 
@@ -309,13 +244,13 @@ def sort_tss_tts_files(tss, tts, genome_size, gene_crossing_origin, last_gene_si
 def get_tr_info_1(tss, tts, TU_tts, Kon, Poff, genome_size, gene_crossing_origin, last_gene_size):
     this_TU_tts = []
     tr_id = []
+    tr_TU = []
     tr_start = []
     tr_end = []
     tr_strand = []
     tr_size = []
     tr_rate = []
     sum_Kon = np.sum(Kon)
-
     j = 0 # trancript id indice
     for i in tss.index.values: # All TSSs
         #print("***", i)
@@ -335,6 +270,7 @@ def get_tr_info_1(tss, tts, TU_tts, Kon, Poff, genome_size, gene_crossing_origin
             while proba_rest > 0 :
                 #if tss['TSS_pos'][i] < this_TU_tts[k]: #tts['TTS_pos'][k]:
                 tr_id.append(j)
+                tr_TU.append(TU_id)
                 tr_strand.append(1)
                 tr_start.append(tss['TSS_pos'][i])
                 # after getting the TSSs, we shall (in every loop) generate a new tr_end
@@ -351,6 +287,7 @@ def get_tr_info_1(tss, tts, TU_tts, Kon, Poff, genome_size, gene_crossing_origin
             while proba_rest > 0 and k < len(this_TU_tts) :
                 #if this_TU_tts[k] < tss['TSS_pos'][i] : #tts['TTS_pos'][k]
                 tr_id.append(j)
+                tr_TU.append(TU_id)
                 tr_strand.append(-1)
                 tr_start.append(tss['TSS_pos'][i])
                 # after getting them, we shall (in every loop) generate a new tr_end
@@ -374,75 +311,12 @@ def get_tr_info_1(tss, tts, TU_tts, Kon, Poff, genome_size, gene_crossing_origin
     if gene_crossing_origin:
         # Alter the tr_size of the last gene -the one crossing the Origin-
         tr_size[-1] = last_gene_size
-
     ts_beg_all_trs = np.zeros(len(tr_id), dtype=int)
     ts_remain_all = np.around(tr_size)
     # print("tr_id", tr_id)
     # print("tr_rate", tr_rate)
     # print("tr_start", tr_start, "trstop", tr_end)
-    return (tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
-
-
-
-
-
-
-# Get the list of all possible transcripts
-def get_tr_info_old(tss, tts, TU_tts, Kon, Poff):
-    this_TU_tts = []
-    tr_id = []
-    tr_start = []
-    tr_end = []
-    tr_strand = []
-    tr_size = []
-    tr_rate = []
-    sum_Kon = np.sum(Kon)
-
-    j = 0 # trancript id indice
-    for i in tss.index.values: # All TSSs
-        # get the TU of this tss
-        TU_id = tss['TUindex'][i]
-        # the list of TTS that are in the same TU of this tss_id (i)
-        # TU_tts ex : defaultdict(list, {0: [1150, 2350], 1: [6250]})
-        # On prend tt les tts qui existent dans la meme UT du tss choisi
-        this_TU_tts = TU_tts[TU_id] # pour 0 => [1150, 2350]
-        # + or -
-        if tss['TUorient'][i] == '+' :
-            # go right
-            k = TU_id # TTS id index : k start from the first position of each TU
-            proba_rest = 1
-            while proba_rest > 0 :
-                if tss['TSS_pos'][i] < tts['TTS_pos'][k]:
-                    tr_id.append(j)
-                    tr_strand.append(1)
-                    tr_start.append(tss['TSS_pos'][i])
-                    # after getting the TSSs, we shall (in every loop) generate a new tr_end
-                    tr_end.append(tts['TTS_pos'][k])
-                    # the probability to choose a specific transcript
-                    tr_rate.append(Kon[i] * (Poff[k] * proba_rest))
-                    proba_rest = (1 - Poff[k]) * proba_rest
-                    j += 1
-                k += 1
-        else:
-            # go left
-            k = 0
-            proba_rest = 1
-            while proba_rest > 0 and k < len(this_TU_tts) :
-                if tts['TTS_pos'][k] < tss['TSS_pos'][i] :
-                    tr_id.append(j)
-                    tr_strand.append(-1)
-                    tr_start.append(tss['TSS_pos'][i])
-                    # after getting them, we shall (in every loop) generate a new tr_end
-                    tr_end.append(this_TU_tts[k])
-                    # the probability to choose a specific transcript
-                    tr_rate.append(Kon[i] * (Poff[k] * proba_rest))
-                    proba_rest = (1 - Poff[k]) * proba_rest
-                    j += 1
-                k += 1
-    tr_size = np.abs(np.array(tr_start) - np.array(tr_end))
-    ts_beg_all_trs = np.zeros(len(tr_id), dtype=int)
-    ts_remain_all = np.around(tr_size)
-    return (tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
+    return (tr_id, tr_TU, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
 
 def f_prob_init_rate(init_rate, sum_init_rate, DELTA_T):
     return (1-np.exp(-sum_init_rate*DELTA_T)) * (init_rate/sum_init_rate)
@@ -467,7 +341,7 @@ def calc_sigma(Barr_sigma, GYRASE_CONC, k_GYRASE, x0_GYRASE, GYRASE_CTE, TOPO_CO
 
 def save_files(output_path,
                 Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma,
-                tr_nbr, tr_times, save_RNAPs_info, save_tr_info,
+                tr_def, tr_nbr, tr_times, save_RNAPs_info, save_tr_info,
                 save_Dom_sigma, save_Barr_pos, save_mean_sig_wholeGenome, save_Dom_size,
                 DELTA_X, RNAPs_genSC,
                 RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id,
@@ -478,14 +352,17 @@ def save_files(output_path,
     os.makedirs("%s/resume_sim" %output_path, exist_ok=True)
     os.makedirs("%s/all_res" %output_path, exist_ok=True)
 
+    # save_tr_def
+    tr_def.to_csv("%s/save_tr_def.csv"%output_path, sep='\t', index=False)
+    
     # save tr_nbr
     tr_nbr = pd.Series(tr_nbr)
-    tr_nbr.to_csv("%s/save_tr_nbr.csv" %output_path, sep=';', index=False)
+    tr_nbr.to_csv("%s/save_tr_nbr.csv" %output_path, sep='\t', index=False)
 
     # convert tr_times dict to pandas serie
     tr_times = pd.DataFrame.from_dict(tr_times, orient='index')
     # save the tr_times to csv file
-    tr_times.to_csv("%s/save_tr_times.csv" %output_path, sep=';', index=True, header = False)
+    tr_times.to_csv("%s/save_tr_times.csv" %output_path, sep='\t', index=True, header = False)
     # save the number of RNAPs hooked
     np.savez("%s/save_nbr_RNAPs_hooked.npz" %output_path, nbr_RNAPs_hooked = save_nbr_RNAPs_hooked)
 
@@ -606,7 +483,8 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     # we drop "TUorient" and "TUindex" to remove duplicates
     # because there present in both TSS.dat and TTS.dat files
     # we will put them back later in sort_tss_tts_files() function
-    tss = load_tab_file(pth+TSS_file).drop(columns="TUorient").drop(columns="TUindex")
+    #tss = load_tab_file(pth+TSS_file).drop(columns="TUorient").drop(columns="TUindex")
+    tss = load_tab_file(pth+TSS_file).drop(labels="TUorient",axis=1).drop(labels="TUindex",axis=1)
     tts = load_tab_file(pth+TTS_file)
     # we will load the prot_file later
 
@@ -616,7 +494,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     last_gene_size = 0
     tss, tts, gene_crossing_origin, last_gene_size = sort_tss_tts_files(tss, tts, genome_size, gene_crossing_origin, last_gene_size)
 
-    print("------ [BIGIN] General Information ------")
+    print("------ [BEGIN] General Information ------")
     # get the TSS position
     TSS_pos = (tss['TSS_pos'].values/DELTA_X).astype(int)
     print("TSS_pos ---= ", TSS_pos)
@@ -648,12 +526,14 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     # strands = str2num(gff_df['strand'].values)
 
     # list of all possible transcripts
-    tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all = get_tr_info_1(tss, tts, TU_tts, Kon, Poff, genome_size, gene_crossing_origin, last_gene_size)
+    tr_id, tr_TU, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all = get_tr_info_1(tss, tts, TU_tts, Kon, Poff, genome_size, gene_crossing_origin, last_gene_size)
+    tr_def=pd.DataFrame(data={"ID": tr_id, "TU": tr_TU, "strand": tr_strand, "start": tr_start, "end": tr_end, "bas_rate": tr_rate}, columns=["ID", "TU", "strand", "start", "end", "bas_rate"])
     #print(tr_id, tr_strand, tr_start, tr_end, tr_rate, tr_size, ts_beg_all_trs, ts_remain_all)
     # convert all variables to numpy array
     tr_id = np.array(tr_id)
     tr_strand = np.array(tr_strand)
     print("tr_id ---= ", tr_id)
+    print("tr_TU ---= ", tr_TU)
     print("tr_strand ---= ", tr_strand)
 
     tr_start = np.array(tr_start)/DELTA_X
@@ -681,6 +561,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     genome = int(genome_size/DELTA_X)
     print("genome ---= ", genome)
     print("------ [END] General Information ------")
+    
     if resume == False:
         # The position of RNAPs
         RNAPs_pos = np.full(RNAPS_NB, np.nan)
@@ -1156,11 +1037,11 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         sys.exit(1)
 
 
-    save_files(output_path, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Barr_pos, save_mean_sig_wholeGenome, save_Dom_size, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
+    save_files(output_path, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_def, tr_nbr, tr_times, save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Barr_pos, save_mean_sig_wholeGenome, save_Dom_size, DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg, ts_remain, save_nbr_RNAPs_hooked, init_rate, Kon, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
 
-    print("Simulation completed successfully !! \nNumber of transcripts : \n")
+    print("Simulation completed successfully !! \nNumber of transcripts :")
     for i, v in enumerate(tr_nbr):
-        print("Transcript{} : {}".format(i, v))
+        print("Transcript ID {} : {}".format(i, v))
 
     return (GFF_file, TSS_file, TTS_file,
             SIM_TIME, RNAPS_NB,

@@ -1,11 +1,11 @@
 from setuptools import setup
 
-setup(name='TCDS',
+setup(name='TSC',
       version='0.7',
-      description='Python package for the simulation of Transcription-Coupled DNA Supercoiling in Bacteria',
-      url='https://github.com/bilalelhoudaigui/TCDS-v2',
+      description='Python package for the simulation of Transcription-Supercoiling Coupling in Bacteria',
+      url='https://github.com/sammeyer2017/TCDS-v2',
       author='Bilal El Houdaigui',
       author_email='bilal.elhoudaigui@gmail.com',
       license='MIT',
-      packages=['TCDS'],
+      packages=['TSC'],
       zip_safe=False)

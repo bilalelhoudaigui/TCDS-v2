@@ -1,5 +1,5 @@
 import sys
-import TCDS.simulation as sim
+import TSC as sim
 INI_file=sys.argv[1]
 try:
     output_dir=sys.argv[2]
