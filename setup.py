@@ -8,4 +8,5 @@ setup(name='TSC',
       author_email='bilal.elhoudaigui@gmail.com',
       license='MIT',
       packages=['TSC'],
-      zip_safe=False)
+      zip_safe=False,
+      install_requires=['pandas', 'numpy', 'dnaplotlib', 'matplotlib', 'scipy'])
