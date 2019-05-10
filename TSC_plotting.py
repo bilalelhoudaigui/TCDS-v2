@@ -1,6 +1,7 @@
 import TSC as sim
 import numpy as np
 import dnaplotlib as dpl
+# import pandas as pd
 # gridspec is a module which specifies the location of the subplot in the figure.
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
@@ -41,7 +42,7 @@ def get_cov_bp(INI_file):
     gff_df_raw = sim.load_gff(GFF_file)
     # to get the cov_bp (a verifier)
     genome_size = sim.get_genome_size(gff_df_raw)
-    genome = int(genome_size / DELTA_X)
+    genome = math.ceil(genome_size / DELTA_X)
     # print(genome)
     cov_bp = np.arange(0, genome_size, DELTA_X)
     # print(cov_bp,len(cov_bp))
@@ -78,7 +79,7 @@ def plot_genome(ax_dna, INI_file):
     gff_df_raw = sim.load_gff(GFF_file)
     # to get the cov_bp (a verifier)
     genome_size = sim.get_genome_size(gff_df_raw)
-    genome = int(genome_size / DELTA_X)
+    genome = math.ceil(genome_size / DELTA_X)
     cov_bp = np.arange(0, genome_size, DELTA_X)
     cov_bp = np.resize(cov_bp, genome)
 
@@ -210,15 +211,17 @@ def plot_superc_distrib(ax, Barr_pos, SC, cov_bp, DELTA_X, Barr_fix):
     # ax.axvline(b*DELTA_X,color="black")
 
 
-def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None, width=7, height=1.5):
+def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None, width=4, height=None):
     """
     Plots a genome into an output figure file. Optionally, make a second plot with one or several signals along the genome and/or RNAP positions. 
-    - the signals must have the same size as the genome in reduced units. They are a list of tuples (label, array of values) of genome size OR tuple (label, value, Barr_pos) to draw the distribution at given timepoint from simul output
+    - the signals must have the same size as the genome in reduced units. They are a list of tuples (label, style, array of values) of genome size OR tuple (label, style, value_list, Barr_pos) to draw the distribution at given timepoint from simul output. In the second case, one value per topological domain is provided. "style" is either "l" (line) or "a" (area, for transcript coverage)
     - the RNAPs are shown as red circles. it is an array of positions
     """
     # Create the figure and all axes to draw to
 
     if signals is None:
+        if height==None:
+            height=1.5
         fig = plt.figure(figsize=(width, height))  # 3.2,2.7
         ax_dna = plt.subplot()
         SIGMA_0, DELTA_X, BARR_FIX, cov_bp = plot_genome(ax_dna, INI_file)
@@ -227,6 +230,8 @@ def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None, width=
                         zorder=100)
 
     else:
+        if height==None:
+            height=4
         fig = plt.figure(figsize=(width, height))  # 3.2,2.7
         gs = gridspec.GridSpec(2, 1, height_ratios=[1, 1])
 
@@ -238,13 +243,17 @@ def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None, width=
         # plot of signals
         if signals is not None:
             for si in signals:
-                if len(si) == 2:
+                if len(si) == 3:
                     # case where we plot an array of values along the genome
-                    slab, s = si
-                    ax_sig.plot(cov_bp, s, linewidth=1.5, label=slab)
-                elif len(si) == 3:
+                    slab, style, s = si
+                    if style=="a":
+                        ax_sig.fill_between(cov_bp, s, label=slab)
+                        ax_sig.axhline()
+                    else:
+                        ax_sig.plot(cov_bp, s, linewidth=1., color=style, label=slab)
+                elif len(si) == 4:
                     # case where we compute the SC distribution along the genome at a timepoint
-                    slab, SC, Barr_pos = si
+                    slab, style, SC, Barr_pos = si
                     plot_superc_distrib(ax_sig, Barr_pos, SC, cov_bp, DELTA_X, BARR_FIX)
                 ax_sig.legend(loc='best', fontsize=12)
                 # ax_sig.set_ylim([-0.2,0.2])
@@ -318,6 +327,59 @@ def get_SCprofiles_from_dir(output_dir, compute_topoisomerase=False, timepoints=
         return [(barr[i], s) for i, s in enumerate(sigma)], gyr_act, topo_act
 
 
+
+def plot_transcription_profile(init_file, output_dir, plotfile=None, basal_profile=False):
+    """
+    Computes (and plots) an array of transcript coverage along the genome, based on a transcription simulation. 
+    Arguments: 
+    - Initiation file for genome description
+    - Output dir for simulation data
+    Options:
+    - plotfile: output file if plotting is required (without extension)
+    - basal_profile: whether a line is plotted, based on the basal transcription start and termination rates, in order to highlight the specific effect of TSC in the generated profile. If True, the transcription levels are normalized in the graph, with an average coverage of 1. 
+    Output: 
+    Tuple of NumPy arrays: expression profile (transcript coverage by position), basal expression profile (rate)
+    """
+    cov_bp = get_cov_bp(init_file)
+    # # get profile: pandas version
+    # a=pd.read_csv(output_dir+"/save_tr_def.csv", sep="\t", header=0)
+    # strand=np.array(a["strand"])
+    # start=np.array(a["start"])
+    # end=np.array(a["end"])
+    # bas_rate=np.array(a["bas_rate"])
+    # nbs=np.array(pd.read_csv(output_dir+"/save_tr_nbr.csv", sep="\t", header=None))[:,0]
+    # get profile: numpy version
+    a=np.loadtxt(output_dir+"/save_tr_def.csv",delimiter="\t",skiprows=1,usecols=[2,3,4,5]) # strand, start, end, basrate
+    nbs=np.loadtxt(output_dir+"/save_tr_nbr.csv",delimiter="\t",usecols=[0]) # strand, start, end, basrate
+    starts=np.array(a[:,1]/60,dtype=int)
+    ends=np.array(a[:,2]/60,dtype=int)
+    n = len(cov_bp)
+    res=np.zeros(n)
+    baslev=np.zeros(n)
+    for i,s in enumerate(starts):
+        strand=a[i,0]
+        if strand==1:
+            if ends[i]>s:
+                res[s:ends[i]]+=nbs[i]
+                baslev[s:ends[i]]+=a[i,3]
+        else:
+            if ends[i]<s:
+                res[ends[i]:s]-=nbs[i]
+                baslev[ends[i]:s]-=a[i,3]
+    # Plotting
+    if plotfile is not None:
+        if basal_profile:
+            # normalize res and baslev
+            nres=res/np.mean(res)
+            nbaslev=nbaslev=baslev/np.mean(baslev)
+            plot_genome_and_features(plotfile, init_file, signals=[("expression", "a", nres),("basal", "r", nbaslev)], width=4, height=3)
+        else:
+            plot_genome_and_features(plotfile, init_file, signals=[("expression", "a", res)], width=4, height=3)
+    return res, baslev
+    
+
+
+    
 def get_SC_array(init_file, output_dir, compute_topoisomerase=False, timepoints=None):
     # same as last function except that output is a Numpy array with values at each position rather than a list of domain
     # this is helpful if you want to draw the distribution of SC or topo activity along the genome
