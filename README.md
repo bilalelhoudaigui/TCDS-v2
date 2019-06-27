@@ -1,6 +1,7 @@
-# Simulation of the Transcription-Supercoiling Coupling in Bacteria
+# TwisTranscripT: Simulation of the Transcription-Supercoiling Coupling in Bacteria
 
-This package aims at simulating the Transcription-Supercoiling Coupling (TSC) and its impact in gene expression in Bacteria. We used the Python programming language with the help of a Python-based scientific ecosystem for scientific computing. The equations, calibration and application of the model is described in [El Houdaigui et al., NAR 2019](https://doi.org/10.1093/nar/gkz300). 
+This package aims at simulating the Transcription-Supercoiling Coupling (TSC) and its impact in gene expression in Bacteria. We used the Python programming language with the help of a Python-based scientific ecosystem for scientific computing. Equations, calibration and application of the model are described in [El Houdaigui et al., NAR 2019](https://doi.org/10.1093/nar/gkz300). 
+Topoisomerase parameters may be adapted for eukaryotes, but not yet tested. 
 
 ## Getting Started
 
@@ -46,9 +47,7 @@ or use the executable script ```./start_simulation.py INI_file OUTPUT_dir``` in 
 ### Input files :
 
 #### The General Feature Format file (GFF):
-Classical genome description file; Each line of the
-
-[GFF](https://www.ensembl.org/info/website/upload/gff.html) file contains 9 columns of data : *Seqname*, *Source*, *Feature*, *Start*, *End*, *Score*, *Strand*, *Frame* and *Attribute*.
+Classical genome description file; Each line of the [GFF](https://www.ensembl.org/info/website/upload/gff.html) file contains 9 columns of data : *Seqname*, *Source*, *Feature*, *Start*, *End*, *Score*, *Strand*, *Frame* and *Attribute*.
 
 This file is mainly used to extract the simulated genome length, given by the "region" feature. Gene positions are not used by the main script. 
 
@@ -139,15 +138,15 @@ Additional output files:
 
 ### Parameter file :
 
-This configuration file of standard format (https://docs.python.org/3/library/configparser.html) contains simulation parameters separated into 5 sections. *In most cases, the user should edit only the first and last sections*:
+This configuration file of standard format (https://docs.python.org/3/library/configparser.html) contains simulation parameters separated into 5 sections. **In most cases, the user should edit only the first and last sections**:
 
-1. *INPUTS*: paths to the *GFF*, *TSS*, *TTS* and *BARR_FIX* files.
+1. **INPUTS: paths to the *GFF*, *TSS*, *TTS* and *BARR_FIX* files**
 
 2. PROMOTER: parameters of the promoter response curve to local SC variations, based on a thermodynamic model of promoter opening: supercoiling activation factor, crossover threshold and width (see [El Houdaigui et al., NAR 2019](https://doi.org/10.1093/nar/gkz300)). 
 3. TOPOISOMERASES: activity parameters for the two main topoisomerases. Default values are calibrated for bacteria (topoisomerase 1 and DNA gyrase), and may be adapted to eukaryotes: activity constant (in $s^{-1}$), crossover threshold and width. 
 4. GLOBAL: space and time discretisation units. Default values: 60~nt and 2~s.
 
-5. *SIMULATION*: main simulation parameters
+5. **SIMULATION: main simulation parameters**
     * *RNAPs_genSC*: Supercoiling generation rate by elongating RNAPs (default 0.2 coils per unit length)
     * *SIGMA_0*: Initial uniform supercoiling density (default -0.06)
     * *RNAPS_NB*: The number of RNA Polymerases (default 3)
