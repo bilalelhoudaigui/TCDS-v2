@@ -244,8 +244,6 @@ def sort_tss_tts_files(tss, tts, genome_size):
     return ts, gene_crossing_origin, last_gene_size
 
 
-### new improved versoion of ... u know ###
-
 def get_TUs(ts):
     """
     Get the Transcription Units
@@ -406,8 +404,6 @@ def calc_proba_off(tr_info):
     tr_info.to_csv("transcripts_info.csv", sep="\t", index=False)
     return tr_info
 
-###########
-
 
 def f_prob_init_rate(init_rate, sum_init_rate, DELTA_T):
     return (1 - np.exp(-sum_init_rate * DELTA_T)) * (init_rate / sum_init_rate)
@@ -437,7 +433,7 @@ def calc_sigma(Barr_sigma, GYRASE_CONC, k_GYRASE, x0_GYRASE, GYRASE_CTE, TOPO_CO
 
 def save_files(output_path,
                Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma,
-               tr_def, tr_nbr, tr_times, save_RNAPs_info, save_tr_info,
+               tr_info, tr_nbr, tr_times, save_RNAPs_info, save_tr_info,
                save_Dom_sigma, save_Barr_pos, save_mean_sig_wholeGenome, save_Dom_size,
                DELTA_X, RNAPs_genSC,
                RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id,
@@ -447,12 +443,14 @@ def save_files(output_path,
     os.makedirs("%s/resume_sim" % output_path, exist_ok=True)
     os.makedirs("%s/all_res" % output_path, exist_ok=True)
 
-    # save_tr_def
-    tr_def.to_csv("%s/save_tr_def.csv" % output_path, sep='\t', index=False)
+    # add the tr_nbr to tr_info dataframe
+    tr_info['number of transcripts generated'] = tr_nbr
 
-    # save tr_nbr
-    tr_nbr = pd.Series(tr_nbr)
-    tr_nbr.to_csv("%s/save_tr_nbr.csv" % output_path, sep='\t', index=False, header=False)
+    # remove 'tr_segment_count' and 'TSS_id' columns before saving
+    tr_info = tr_info.drop(['tr_segment_count', 'TSS_id'], axis=1)
+
+    # tr_info
+    tr_info.to_csv("%s/all_tr_info.csv" % output_path, sep='\t', index=False)
 
     # convert tr_times dict to pandas serie
     tr_times = pd.DataFrame.from_dict(tr_times, orient='index')
@@ -633,7 +631,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     tr_start = (tr_start / DELTA_X).astype(int)
     tr_end = (tr_end / DELTA_X).astype(int)
     tr_size = (tr_size / DELTA_X).astype(int)
-    ts_remain_all = np.around(tr_size.astype(np.double))
+    ts_remain_all = np.around(tr_size)
 
     if not resume:
         # The position of RNAPs
@@ -1049,15 +1047,16 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         """
         This sim_info is just for the print (can be removed)
         """
-        sim_info = pd.DataFrame(
-            data={
-                "Barr_sigma": Barr_sigma,
-                "Barr_type": Barr_type,
-                "Barr_pos": Barr_pos,
-                "Dom_size": Dom_size,
-                "Barr_ts_remain": Barr_ts_remain},
-            columns=["Barr_sigma", "Barr_type", "Barr_pos", "Dom_size", "Barr_ts_remain"])
-        print(sim_info)
+        if Barr_sigma.size == Barr_type.size:
+            sim_info = pd.DataFrame(
+                data={
+                    "Barr_sigma": Barr_sigma,
+                    "Barr_type": Barr_type,
+                    "Barr_pos": Barr_pos,
+                    "Dom_size": Dom_size,
+                    "Barr_ts_remain": Barr_ts_remain},
+                columns=["Barr_sigma", "Barr_type", "Barr_pos", "Dom_size", "Barr_ts_remain"])
+            print(sim_info)
 
         print("======  ======  ======  ======  ======")
         print("======  ======  ======  ======  ======")
@@ -1178,7 +1177,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         print("Input file was not copied")
         sys.exit(1)
 
-    save_files(output_path, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_def, tr_nbr, tr_times,
+    save_files(output_path, Barr_pos, Barr_type, Dom_size, Barr_ts_remain, Barr_sigma, tr_info, tr_nbr, tr_times,
                save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Barr_pos, save_mean_sig_wholeGenome, save_Dom_size,
                DELTA_X, RNAPs_genSC, RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id, RNAPs_hooked_id, RNAPs_strand, ts_beg,
                ts_remain, save_nbr_RNAPs_hooked, init_rate, tr_rate, RNAPS_NB, SIGMA_0, GYRASE_CONC, TOPO_CONC)
