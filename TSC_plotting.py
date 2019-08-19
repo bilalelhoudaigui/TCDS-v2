@@ -67,7 +67,7 @@ def plot_genome(ax_dna, INI_file):
     TSS_file = path + config.get('INPUTS', 'TSS')
     TTS_file = path + config.get('INPUTS', 'TTS')
     Prot_file = path + config.get('INPUTS', 'BARR_FIX')
-
+    
     SIGMA_0 = config.getfloat('SIMULATION', 'SIGMA_0')
     DELTA_X = config.getfloat('GLOBAL', 'DELTA_X')
 
@@ -92,7 +92,8 @@ def plot_genome(ax_dna, INI_file):
     Poff = tts['TTS_proba_off'].values
 
     strands = sim.str2num(gff_df['strand'].values)
-
+    tssstrands = sim.str2num(tss["TUorient"].values)
+    
     # Color maps for formatting
     col_map = {}
     col_map['red'] = (0.95, 0.30, 0.25)
@@ -113,42 +114,54 @@ def plot_genome(ax_dna, INI_file):
     Ts = []
 
     design = []
-
+    
     for i in gff_df.index.values:
-        opt_CDSs.append({'label': 'Gene%s \n%.03f' % (str(i + 1), Kon[i]),
-                         'label_style': 'italic',
-                         'label_y_offset': -5,
-                         'label_size': 9,
+        opt_CDSs.append({#'label': 'Gene%s \n%.03f' % (str(i + 1), Kon[i]),
+                         #'label_style': 'italic',
+                         #'label_y_offset': -5,
+                         #'label_size': 9,
                          'color': col_map['orange']})
         # Design of the construct
-        if strands[i]:
-            # Promoters
-            Ps.append({'type': 'Promoter', 'name': 'P%s' % str(i + 1), 'start': tss['TSS_pos'][i],
-                       'end': tss['TSS_pos'][i] + 5, 'fwd': strands[i], 'opts': {'color': col_map['green']}})
+        if strands[i]==1:
             # Coding Sequence
             CDSs.append({'type': 'CDS', 'name': 'CDS%s' % str(i + 1), 'start': gff_df['start'][i],
                          'end': gff_df['end'][i], 'fwd': gff_df['strand'][i], 'opts': opt_CDSs[i]})
         else:
-            # Promoters
-            Ps.append({'type': 'Promoter', 'name': 'P%s' % str(i + 1), 'start': tss['TSS_pos'][i],
-                       'end': tss['TSS_pos'][i] - 5, 'fwd': strands[i], 'opts': {'color': col_map['green']}})
             # Coding Sequence
             CDSs.append({'type': 'CDS', 'name': 'CDS%s' % str(i + 1), 'start': gff_df['end'][i],
                          'end': gff_df['start'][i], 'fwd': gff_df['strand'][i], 'opts': opt_CDSs[i]})
-            # Terminators
-        Ts.append({'type': 'Terminator', 'name': 'T%s' % str(i + 1), 'start': tts['TTS_pos'][i],
-                   'end': tts['TTS_pos'][i] + 5, 'fwd': strands[i], 'opts': {'color': col_map['red']}})
-
+        
         # A design is merely a list of parts and their properties
         if strands[i]:
-            design.append(Ps[i])
+            #design.append(Ps[i])
             design.append(CDSs[i])
-            design.append(Ts[i])
+             #design.append(Ts[i])
         else:
-            design.append(Ts[i])
+            #design.append(Ts[i])
             design.append(CDSs[i])
-            design.append(Ps[i])
+            #design.append(Ps[i])
 
+    
+    for i in tss.index.values:
+        # Design of the construct
+        if tssstrands[i]==1:
+            # Promoters
+            Ps.append({'type': 'Promoter', 'name': 'P%s' % str(i + 1), 'start': tss['TSS_pos'][i],
+                       'end': tss['TSS_pos'][i] + 5, 'fwd': tssstrands[i], 'opts': {'color': col_map['green']}})
+        else:
+            # Promoters
+            Ps.append({'type': 'Promoter', 'name': 'P%s' % str(i + 1), 'start': tss['TSS_pos'][i],
+                       'end': tss['TSS_pos'][i] - 5, 'fwd': tssstrands[i], 'opts': {'color': col_map['green']}})
+                # A design is merely a list of parts and their properties
+        design.append(Ps[i])
+
+    for i in tts.index.values:
+        print(i)
+        # Terminators
+        Ts.append({'type': 'Terminator', 'name': 'T%s' % str(i + 1), 'start': tts['TTS_pos'][i],
+                   'end': tts['TTS_pos'][i] + 5, 'fwd': 1, 'opts': {'color': col_map['red']}})
+        design.append(Ts[i])
+            
     # Redender the DNA
     dr = dpl.DNARenderer(scale=7, linewidth=1)
     start, end = dr.renderDNA(ax_dna, design, dr.trace_part_renderers())
@@ -211,9 +224,10 @@ def plot_superc_distrib(ax, Barr_pos, SC, cov_bp, DELTA_X, Barr_fix):
     # ax.axvline(b*DELTA_X,color="black")
 
 
-def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None, width=4, height=None):
+def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None, width=4, height=None, hlims=None, ylabel=r'$\sigma(x)$'):
     """
     Plots a genome into an output figure file. Optionally, make a second plot with one or several signals along the genome and/or RNAP positions. 
+    - outfile: without extension
     - the signals must have the same size as the genome in reduced units. They are a list of tuples (label, style, array of values) of genome size OR tuple (label, style, value_list, Barr_pos) to draw the distribution at given timepoint from simul output. In the second case, one value per topological domain is provided. "style" is either "l" (line) or "a" (area, for transcript coverage)
     - the RNAPs are shown as red circles. it is an array of positions
     """
@@ -255,10 +269,9 @@ def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None, width=
                     # case where we compute the SC distribution along the genome at a timepoint
                     slab, style, SC, Barr_pos = si
                     plot_superc_distrib(ax_sig, Barr_pos, SC, cov_bp, DELTA_X, BARR_FIX)
-                ax_sig.legend(loc='best', fontsize=12)
                 # ax_sig.set_ylim([-0.2,0.2])
             ax_sig.set_xlim([0, cov_bp[-1]])
-            ax_sig.set_ylabel(r'$\sigma(x)$')
+            ax_sig.set_ylabel(ylabel)
             ax_sig.set_xlabel('Position (bp)')
             if RNAPs is not None:
                 ax_dna.plot(RNAPs * DELTA_X, np.full(len(RNAPs), 0, dtype=float), 'o', markersize=10, color="blue",
@@ -272,9 +285,14 @@ def plot_genome_and_features(outfile, INI_file, signals=None, RNAPs=None, width=
                     # ax_sig.add_artist(con)
             for x in BARR_FIX:
                 ax_dna.axvline(x=x, ymin=-1.7, ymax=0.5, color="black", ls="--", lw=0.8, zorder=110, clip_on=False)
+            if hlims is not None:
+                ax_sig.set_ylim(hlims[0],hlims[1])
+            if hlims is None:
+                ax_sig.legend(loc='best', fontsize=12)
     plt.tight_layout()
     for ext in exts:
         plt.savefig(outfile + ext)
+    plt.close()
 
 
 # --------------
@@ -349,8 +367,8 @@ def plot_transcription_profile(init_file, output_dir, plotfile=None, basal_profi
     # bas_rate=np.array(a["bas_rate"])
     # nbs=np.array(pd.read_csv(output_dir+"/save_tr_nbr.csv", sep="\t", header=None))[:,0]
     # get profile: numpy version
-    a=np.loadtxt(output_dir+"/save_tr_def.csv",delimiter="\t",skiprows=1,usecols=[2,3,4,5]) # strand, start, end, basrate
-    nbs=np.loadtxt(output_dir+"/save_tr_nbr.csv",delimiter="\t",usecols=[0]) # strand, start, end, basrate
+    a=np.loadtxt(output_dir+"/all_tr_info.csv",delimiter="\t",skiprows=1,usecols=[4,2,5,6,7]) # strand, start, end, basrate, number
+    #nbs=np.loadtxt(output_dir+"/save_tr_nbr.csv",delimiter="\t",usecols=[0]) # number of mRNAs for each possible transcript
     starts=np.array(a[:,1]/60,dtype=int)
     ends=np.array(a[:,2]/60,dtype=int)
     n = len(cov_bp)
@@ -370,11 +388,11 @@ def plot_transcription_profile(init_file, output_dir, plotfile=None, basal_profi
     if plotfile is not None:
         if basal_profile:
             # normalize res and baslev
-            nres=res/np.mean(res)
-            nbaslev=nbaslev=baslev/np.mean(baslev)
-            plot_genome_and_features(plotfile, init_file, signals=[("expression", "a", nres),("basal", "r", nbaslev)], width=4, height=3)
+            nres=res/np.mean(np.abs(res))
+            nbaslev=nbaslev=baslev/np.mean(np.abs(baslev))
+            plot_genome_and_features(plotfile, init_file, signals=[("expression", "a", nres),("basal", "r", nbaslev)], width=4, height=3, ylabel="level")
         else:
-            plot_genome_and_features(plotfile, init_file, signals=[("expression", "a", res)], width=4, height=3)
+            plot_genome_and_features(plotfile, init_file, signals=[("expression", "a", res)], width=4, height=3, ylabel="level")
     return res, baslev
     
 
@@ -400,7 +418,6 @@ def get_SC_array(init_file, output_dir, compute_topoisomerase=False, timepoints=
         return np.array([compute_superc_distrib(bsi[0], bsi[1], cov_bp) for bsi in bs])
     else:
         bs, gy, to = get_SCprofiles_from_dir(output_dir, compute_topoisomerase=init_file, timepoints=timepoints)
-        # print(gy)
         sc = np.array([compute_superc_distrib(bsi[0], bsi[1], cov_bp) for bsi in bs])
         gyr = np.array([compute_superc_distrib(bs[i][0], g, cov_bp) for i, g in enumerate(gy)])
         topo = np.array([compute_superc_distrib(bs[i][0], t, cov_bp) for i, t in enumerate(to)])

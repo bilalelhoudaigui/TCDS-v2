@@ -839,7 +839,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
                     # get all tr_id belonging to this tss
                     all_tss_tr_id = tr_info[tr_info['TSS_id'] == tss]['tr_id'].values
                     # from all_tss_tr_id, select only the ones that are picked
-                    mask_this_tss_picked_tr_hooked_id = np.isin(all_tss_tr_id, picked_tr_hooked_id)
+                    mask_this_tss_picked_tr_hooked_id = np.isin(all_tss_tr_id, picked_tr_hooked_id)                    
                     this_tss_picked_tr_hooked_id = all_tss_tr_id[mask_this_tss_picked_tr_hooked_id]
                     # all the transcripts have equa probability of being chosen
                     equal_prob = np.repeat(1/np.size(this_tss_picked_tr_hooked_id), np.size(this_tss_picked_tr_hooked_id))
@@ -1154,11 +1154,11 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     if first_output_path is None and resume == False:
         # create another directory inside 'pth' called
         # 'first_output' and save the results there
-        output_dir = "first_output"
+        output_dir = "output"
         # make sure that the output direcory exists, and create one if it doesn't
-        os.makedirs("%s/first_output" % pth, exist_ok=True)
+        os.makedirs("%s/output" % pth, exist_ok=True)
         # set the default output path
-        output_path = pth + "first_output"
+        output_path = pth + "output"
 
     # otherwise, if we're resuming the simulation
     elif resume_output_path is None and resume == True:

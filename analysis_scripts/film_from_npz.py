@@ -1,8 +1,9 @@
 import sys
 import numpy as np
-import TCDS.simulation as sim
-import TCDS.plotting as plotting
+import TSC as sim
+import TSC_plotting as pl
 import matplotlib
+import os
 matplotlib.rcParams.update({'font.size': 13})
 
 INI_file=sys.argv[1]
@@ -11,12 +12,12 @@ output_dir=sys.argv[2]
 output_dir_res = output_dir+"/all_res"
 
 sigma_info = np.load(output_dir_res+"/save_sigma_info.npz")
-RNAPs_info = np.load(output_dir_res+"/save_RNAPs_info.npz")
+RNAPs_info = np.load(output_dir_res+"/save_RNAPs_info.npz")["RNAPs_info"]
+sc=pl.get_SC_array(INI_file,output_dir,compute_topoisomerase=False)
 
-Barr_sigma_info = sigma_info["Barr_sigma_info"]
-Dom_size_info = sigma_info["Dom_size_info"]
-
-for i, Barr_sigma_val in enumerate(sigma_info["Barr_sigma_info"]):
-	one_sigma_info = np.repeat(Barr_sigma_val, sigma_info["Dom_size_info"][i])
-	RNAPs_pos_info = RNAPs_info["RNAPs_info"][:, 1, i]
-	plotting.plot_mean_sigma_genes_v2(INI_file, one_sigma_info, RNAPs_pos_info)
+for i, rnap in enumerate(RNAPs_info[:,1,:].T):
+        pl.plot_genome_and_features("test_%d"%i, INI_file, signals=[("SC","blue",sc[i])], RNAPs=rnap, width=4, height=3, hlims=(-0.2,0.2))
+        os.remove("test_%d.pdf"%i)
+        os.remove("test_%d.svg"%i)
+os.system("ffmpeg -r 10 -i 'test_%d.png' movie.mp4")
+print("output in movie.mp4")
