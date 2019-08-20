@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 import configparser
 import pandas as pd
 import numpy as np
@@ -488,14 +489,13 @@ def save_files(output_path,
 #         Transcription Process (Simulation)              #
 ###########################################################
 
-def start_transcribing(INI_file, first_output_path=None, resume_output_path=None, resume=False):
+def start_transcribing(INI_file, output_path=None, resume=False):
     """
     Function to start/resume the transcription simulation process
 
     Args:
         INI_file (str): The path to the parameter file.
-        first_output_path (str, optional): The path in which all the generated files (when) will be saved.
-        resume_output_path (str, optional): The path in which all the generated files (when resuming) will be saved.
+        output_path (str, optional): The path in which all the generated files will be saved.
         resume (bool, optional): Whether this function is used to resume an already done simulation or not.
 
     Returns:
@@ -688,27 +688,30 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
         # in the case of RNAP_NBR = 0
         RNAPs_hooked_id = []
 
-        # no resume ==> set the 'output_path' to 'first_output_path'
-        output_path = first_output_path
-        # 'output_path' variable is used to save the output files
-        # in 'save_files()' function
+        if output_path is None:
+            # no resume ==> set the 'output_path' to 'first_output'
+            output_path = "first_output"
+            # 'output_path' variable is used to save the output files
+            # in 'save_files()' function
 
     else:
+        if output_path is None:
+            output_path = "resume_output"
         # RNAPs_info contains : ['RNAPs_unhooked_id', 'RNAPs_pos', 'RNAPs_tr']
-        RNAPs_info = np.load("%s/resume_sim/resume_sim_RNAPs.npz" % first_output_path)
+        RNAPs_info = np.load("%s/resume_sim/resume_sim_RNAPs.npz" % output_path)
 
         # get the RNAPs position
         RNAPs_pos = RNAPs_info['RNAPs_pos']
 
         # The number of times transcripts has been transcribed
-        csv_path = "%s/save_tr_nbr.csv" % first_output_path
+        csv_path = "%s/save_tr_nbr.csv" % output_path
         tr_nbr = get_tr_nbr_csv(csv_path)
 
         # when we resume, we won't need info from 'prot' file because we already
         # have all what we need in 'resume_sim_Barr.npz' file ;)
 
         # Get info from NPZ file
-        Barr_info = np.load("%s/resume_sim/resume_sim_Barr.npz" % first_output_path)
+        Barr_info = np.load("%s/resume_sim/resume_sim_Barr.npz" % output_path)
 
         # aaand here we go !
         Barr_pos = Barr_info['Barr_pos']
@@ -724,7 +727,7 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
 
         ## do the same for RNAPs_info
         # get the RNAPs_info
-        RNAPs_info = np.load("%s/resume_sim/resume_sim_RNAPs.npz" % first_output_path)
+        RNAPs_info = np.load("%s/resume_sim/resume_sim_RNAPs.npz" % output_path)
 
         # get the RNAPs_hooked_id and RNAPs_pos
         RNAPs_hooked_id = RNAPs_info["RNAPs_hooked_id"]
@@ -1147,28 +1150,8 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
     save_Barr_pos = np.array(save_Barr_pos)
     save_mean_sig_wholeGenome = np.array(save_mean_sig_wholeGenome)
 
-    # before saving we check whether we're resuming or not
-    # in order to edit the output_path
-
-    # if the output directory isn't specified and we're not resuming the simulation
-    if first_output_path is None and resume == False:
-        # create another directory inside 'pth' called
-        # 'first_output' and save the results there
-        output_dir = "output"
-        # make sure that the output direcory exists, and create one if it doesn't
-        os.makedirs("%s/output" % pth, exist_ok=True)
-        # set the default output path
-        output_path = pth + "output"
-
-    # otherwise, if we're resuming the simulation
-    elif resume_output_path is None and resume == True:
-        # create another directory inside 'pth' called
-        # 'resume_output' and save the results there
-        output_dir = "resume_output"
-        # make sure that the output direcory exists, and create one if it doesn't
-        os.makedirs("%s/resume_output" % pth, exist_ok=True)
-        # set the default output path
-        output_path = pth + "resume_output"
+    # make sure that the output direcory exists, and create one if it doesn't
+    os.makedirs(output_path, exist_ok=True)
 
     try:
         # Copy the params to the output folder
@@ -1192,27 +1175,3 @@ def start_transcribing(INI_file, first_output_path=None, resume_output_path=None
             RNAPs_tr, RNAPs_pos, RNAPs_unhooked_id,
             save_RNAPs_info, save_tr_info, save_Dom_sigma, save_Barr_pos,
             cov_bp, tr_end)
-
-
-if __name__ == '__main__':
-    try:
-        INI_file = sys.argv[1]   # e.g "example/params.ini"
-        # First simulation
-        start_transcribing(INI_file)
-        # or you can specify the output path
-        # start_transcribing(INI_file, output_path)
-
-        # Resuming
-        # uncomment this two lines if you want to resume the simulation
-        # 'first_output_path' means the path from which the script will get the npz files
-        # first_output_path=sys.argv[2]        # e.g "../analysis_scripts/example/first_output"
-        # start_transcribing(INI_file, first_output_path, resume=True)
-    except configparser.NoSectionError:
-        print("Error ! Please check the path to the paraneters files !")
-        sys.exit(1)
-    except PermissionError:
-        print("Permission denied ! Please check the directory to the output files !")
-        sys.exit(1)
-    except (FileNotFoundError, NameError):
-        print("Error ! Please check the directory to the output files !")
-        sys.exit(1)
