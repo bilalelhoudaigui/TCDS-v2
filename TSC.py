@@ -4,13 +4,7 @@ import configparser
 import pandas as pd
 import numpy as np
 import collections as col
-# from pylab import *
-import errno
-import csv
 from shutil import copy
-
-
-# from scipy.optimize import fsolve
 
 ###########################################################
 #                       Functions                         #
@@ -78,21 +72,6 @@ def rename_gff_cols(gff_df):
     gff_df.columns = names
     return gff_df
 
-
-# # Whether the gene is on the + strand or - strand
-# def in_forward(tr_id):
-#     if strands[tr_id] == 1. :
-#         return True
-#     else:
-#         return False
-
-
-# # Get the transciption unit with the list of transcripts
-# def get_TU(TUindex_list):
-#     TU_dict = col.defaultdict(list)
-#     for index, TUindex in enumerate(TUindex_list):
-#         TU_dict[TUindex].append(index)
-#     return TU_dict
 
 # calculate the initiation rate
 def f_init_rate(tr_prob, sig, sigma_t, epsilon, m):
@@ -332,7 +311,7 @@ def get_tr_info(TU_tr_ids, ts):
     """
     columns = [
         'TUindex', 'tr_id', 'tr_TSS_pos', 'tr_TSS_strength',
-        'tr_TUorient', 'tr_TTS_pos', 'tr_TTS_proba_off',
+        'tr_TUorient', 'tr_TTS_pos', 'tr_rate',
         'tr_segment_count', 'TSS_id'
     ]
     # create the empty dataframe
@@ -356,7 +335,7 @@ def get_tr_info(TU_tr_ids, ts):
                     'tr_TSS_strength': current_row["TSS_strength"].values[0],
                     'tr_TUorient': current_row["TUorient_x"].values[0],
                     'tr_TTS_pos': current_row["TTS_pos"].values[0],
-                    'tr_TTS_proba_off': current_row["TTS_proba_off"].values[0],
+                    'tr_rate': current_row["TTS_proba_off"].values[0],
                     'TSS_id': current_row["TSS_id"].values[0],
                     # tr_segment_count: how many segments are in this Transcript
                     'tr_segment_count': len(segment_ids)
@@ -396,11 +375,11 @@ def calc_proba_off(tr_info):
         if proba_rest > 0:
             # get the Kon and Proba_off of the current line
             current_kon = tr_info.iloc[r]['tr_TSS_strength']
-            current_proba_off = tr_info.iloc[r]['tr_TTS_proba_off']
+            current_proba_off = tr_info.iloc[r]['tr_rate']
             # calculate the proba_off of the current transcript
             tr_proba_off = current_kon * (current_proba_off * proba_rest)
             # And update it value in the current row 'r'
-            tr_info.at[r, 'tr_TTS_proba_off'] = tr_proba_off
+            tr_info.at[r, 'tr_rate'] = tr_proba_off
             proba_rest = (1 - current_proba_off) * proba_rest
     tr_info.to_csv("transcripts_info.csv", sep="\t", index=False)
     return tr_info
@@ -516,7 +495,6 @@ def start_transcribing(INI_file, output_path=None, resume=False):
         save_Barr_pos : Contains the barriers positions (whether Barr_fix or RNAPol)
         cov_bp : Coverage
         tr_end : The end (position) of transcripts
-
     """
 
     ###########################################################
@@ -592,9 +570,9 @@ def start_transcribing(INI_file, output_path=None, resume=False):
     tr_strand = str2num(tr_info["tr_TUorient"].values)
     tr_start = tr_info["tr_TSS_pos"].values
     tr_end = tr_info["tr_TTS_pos"].values
-    tr_rate = tr_info["tr_TSS_strength"].values
+    tss_strength = tr_info["tr_TSS_strength"].values
     tr_size = abs(tr_end - tr_start)
-    tr_poff = tr_info["tr_TTS_proba_off"].values
+    tr_rate = tr_info["tr_rate"].values
     tss_id = tr_info["TSS_id"].values
     ts_beg_all_trs = np.zeros(len(tr_id), dtype=int)
     ts_remain_all = tr_size
@@ -613,10 +591,10 @@ def start_transcribing(INI_file, output_path=None, resume=False):
             "tr_start": tr_start,
             "tr_end": tr_end,
             "tr_size": tr_size,
-            "tr_rate": tr_rate,
-            "tr_poff": tr_poff
+            "tss_strength": tss_strength,
+            "tr_rate": tr_rate
         },
-        columns=["tr_id", "tr_TU", "tr_strand", "tr_start", "tr_end", "tr_size", "tr_rate", "tr_poff"])
+        columns=["tr_id", "tr_TU", "tr_strand", "tr_start", "tr_end", "tr_size", "tss_strength", "tr_rate"])
 
     print("====== [BEGIN] General Information ======")
     print("genome_size ---= ", genome_size)
@@ -695,8 +673,6 @@ def start_transcribing(INI_file, output_path=None, resume=False):
             # in 'save_files()' function
 
     else:
-        if output_path is None:
-            output_path = "resume_output"
         # RNAPs_info contains : ['RNAPs_unhooked_id', 'RNAPs_pos', 'RNAPs_tr']
         RNAPs_info = np.load("%s/resume_sim/resume_sim_RNAPs.npz" % output_path)
 
@@ -713,7 +689,6 @@ def start_transcribing(INI_file, output_path=None, resume=False):
         # Get info from NPZ file
         Barr_info = np.load("%s/resume_sim/resume_sim_Barr.npz" % output_path)
 
-        # aaand here we go !
         Barr_pos = Barr_info['Barr_pos']
         Dom_size = Barr_info['Dom_size']
 
@@ -749,10 +724,9 @@ def start_transcribing(INI_file, output_path=None, resume=False):
         # will do the same for RNAPs_hooked_id
         RNAPs_hooked_id = RNAPs_info["RNAPs_hooked_id"]
 
-        # resume ==> set the 'output_path' to 'resume_output_path'
-        output_path = resume_output_path
-        # 'output_path' variable is used to save the output files
-        # in 'save_files()' function
+        if output_path is None:
+            # resume ==> set the 'output_path' to 'resume_output'
+            output_path = "resume_output"
 
     ######### Variables used to get the coverage ##########
 
@@ -789,8 +763,7 @@ def start_transcribing(INI_file, output_path=None, resume=False):
     save_mean_sig_wholeGenome = list()
     save_Barr_pos = list()
 
-    ########### Go !
-
+    # The main loop
     for t in range(0, int(SIM_TIME / DELTA_T)):
         # we need to know each TSS belong to which Domaine
         # if we have only one domaine (e.g no Barr_fix) then
@@ -805,7 +778,7 @@ def start_transcribing(INI_file, output_path=None, resume=False):
 
         # get the initiation rates
         # calculate the initiation rate of each transcript/gene
-        init_rate = f_init_rate(tr_rate, sigma_tr_start, sigma_t, epsilon, m)
+        init_rate = f_init_rate(tss_strength, sigma_tr_start, sigma_t, epsilon, m)
         # use the calculated init_rate to get the probability
         # of RNAPol's binding to each TSS (e.g prob_init_rate)
         sum_init_rate = np.sum(init_rate)
@@ -823,7 +796,7 @@ def start_transcribing(INI_file, output_path=None, resume=False):
             tss_and_unhooked_RNAPs = np.concatenate([ts_id, np.full(len(RNAPs_unhooked_id), -1, dtype=int)])
             # pick up a random transcipt
             picked_tr = np.random.choice(tss_and_unhooked_RNAPs, len(RNAPs_unhooked_id), replace=False,
-                                         p=all_prob)  # RNAPs_unhooked_id
+                                         p=all_prob)
             # This is the KEY !
             picked_tr_hooked_id = picked_tr[np.where(picked_tr != -1)[0]]
             picked_tr_unhooked_id = picked_tr[np.where(picked_tr == -1)[0]]
@@ -851,8 +824,6 @@ def start_transcribing(INI_file, output_path=None, resume=False):
 
                 # IDEA: get index and use delete may be faster
                 filtred_out_picked_tr_hooked_id = np.setdiff1d(picked_tr_hooked_id, filtred_picked_tr_hooked_id)
-                #!print("filtred_out_picked_tr_hooked_id ---> ", filtred_out_picked_tr_hooked_id)
-                #picked_tr_hooked_id = filtred_picked_tr_hooked_id
                 picked_tr[np.isin(picked_tr, filtred_out_picked_tr_hooked_id)] = -1
                 # reset it again!
                 picked_tr_hooked_id = picked_tr[np.where(picked_tr != -1)[0]]
@@ -880,7 +851,7 @@ def start_transcribing(INI_file, output_path=None, resume=False):
             # take the positions and use them to get the index in which we will insert
             # the new recruited RNAPs in Barr_pos array
             Barr_pos_RNAPs_idx = np.searchsorted(Barr_pos, new_hooked_RNAPs_pos_sorted)
-            print("new_hooked_RNAPs_pos_sorted ===> ", new_hooked_RNAPs_pos_sorted)
+            #!print("new_hooked_RNAPs_pos_sorted ===> ", new_hooked_RNAPs_pos_sorted)
             # After we got everything we need, and the new RNAPol is ready be hooked
             # we should first check if the hooked position is empty and there is no
             # other RNAPol passing by/in the same position
@@ -890,8 +861,6 @@ def start_transcribing(INI_file, output_path=None, resume=False):
             # IDEA: Can't we deduplicate this ?
             next_barr_pos[np.where(Barr_type == -1)] -= 1
             next_barr_pos[np.where(Barr_type == 1)] += 1
-            #!print("Barr_pos before next ---)))))---> ", Barr_pos)
-            #!print("next_barr_pos ---)))))---> ", next_barr_pos)
             is_already_filled_pos = np.where(np.isin(next_barr_pos, new_hooked_RNAPs_pos_sorted))
             already_filled_pos = next_barr_pos[is_already_filled_pos]
             # next get the idx position of the cancelled insert new_hooked_RNAPs_pos
@@ -907,9 +876,9 @@ def start_transcribing(INI_file, output_path=None, resume=False):
             # then set them to -1 in picked_tr again
             picked_tr[np.where(picked_tr == picked_tr_hooked_id_to_cancel)[0]] = -1
 
-            print("Barr_pos_RNAPs_idx =========> ", Barr_pos_RNAPs_idx)
-            print("RNAPs_strand =========> ", RNAPs_strand)
-            print("new_hooked_RNAPs_idx_sorted =========> ", new_hooked_RNAPs_idx_sorted)
+            #!print("Barr_pos_RNAPs_idx =========> ", Barr_pos_RNAPs_idx)
+            #!print("RNAPs_strand =========> ", RNAPs_strand)
+            #!print("new_hooked_RNAPs_idx_sorted =========> ", new_hooked_RNAPs_idx_sorted)
 
             # if we have one or no barrier on the genome
             if Barr_pos.size <= 1:
@@ -938,10 +907,10 @@ def start_transcribing(INI_file, output_path=None, resume=False):
 
             ts_beg[new_hooked_RNAPs_idx_sorted] = 0
             ts_remain[new_hooked_RNAPs_idx_sorted] = ts_remain_all[picked_tr_hooked_id]  # NOT picked_tr
-            print("picked_tr_hooked_id -----> ", picked_tr_hooked_id)
-            print("ts_remain -----> ", ts_remain)
-            print("ts_remain_all -----> ", ts_remain_all)
-            print("tr_size -----> ", tr_size)
+            #!print("picked_tr_hooked_id -----> ", picked_tr_hooked_id)
+            #!print("ts_remain -----> ", ts_remain)
+            #!print("ts_remain_all -----> ", ts_remain_all)
+            #!print("tr_size -----> ", tr_size)
             Barr_ts_remain = np.insert(Barr_ts_remain, Barr_pos_RNAPs_idx, ts_remain[new_hooked_RNAPs_idx_sorted])
             RNAPs_hooked_id = np.where(RNAPs_tr != -1)[0]
 
@@ -1005,8 +974,6 @@ def start_transcribing(INI_file, output_path=None, resume=False):
         # Update the position of polymerases still transcribing
         RNAPs_pos[np.where(RNAPs_strand == 1)] += 1
         RNAPs_pos[np.where(RNAPs_strand == -1)] -= 1
-        # RNAPs_pos=np.mod(RNAPs_pos,genome)
-        # print(RNAPs_pos,RNAPs_strand,Barr_pos)
 
         # Update the Dom_size (+1 or -1)
         # if we have at least two barrier
@@ -1059,10 +1026,10 @@ def start_transcribing(INI_file, output_path=None, resume=False):
                     "Dom_size": Dom_size,
                     "Barr_ts_remain": Barr_ts_remain},
                 columns=["Barr_sigma", "Barr_type", "Barr_pos", "Dom_size", "Barr_ts_remain"])
-            print(sim_info)
+            #!print(sim_info)
 
-        print("======  ======  ======  ======  ======")
-        print("======  ======  ======  ======  ======")
+        #!print("======  ======  ======  ======  ======")
+        #!print("======  ======  ======  ======  ======")
 
         #### And then correct the value of Sigma in each case (before/after)
         corr_sig_Barr_Dom_RPlus = (Dom_size[Barr_Dom_RPlus] - 1) / (Dom_size[Barr_Dom_RPlus])  # Sigma decrease x1
@@ -1126,7 +1093,7 @@ def start_transcribing(INI_file, output_path=None, resume=False):
             mean_sig_wholeGenome = (Barr_sigma[0] + Barr_sigma[1]) / 2
 
         # Update the initiation rate
-        init_rate = f_init_rate(tr_rate, sigma_tr_start, sigma_t, epsilon, m)
+        init_rate = f_init_rate(tss_strength, sigma_tr_start, sigma_t, epsilon, m)
 
         if t % OUTPUT_STEP == 0:
             tt = int(t // OUTPUT_STEP)
