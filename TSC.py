@@ -602,7 +602,7 @@ def start_transcribing(INI_file, output_path=None, resume=False):
     print("------ Transcripts Info ------")
     print(tr_def)
     print("======= [END] General Information =======")
-    input("Press Enter to continue...")
+    #input("Press Enter to continue...")
 
     # Devide by DELTA_X
     genome = int(genome_size / DELTA_X)
